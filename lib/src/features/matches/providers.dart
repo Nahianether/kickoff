@@ -1,0 +1,164 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/api/football_api_client.dart';
+import 'data/matches_cache.dart';
+import 'data/matches_repository.dart';
+import 'data/models/match_fixture.dart';
+
+/// Which subset of matches the user is currently viewing.
+enum MatchFilter {
+  all('All'),
+  upcoming('Fixtures'),
+  results('Results'),
+  live('Live');
+
+  const MatchFilter(this.label);
+  final String label;
+}
+
+/// The matches plus metadata about where they came from and when.
+class MatchesData {
+  final List<MatchFixture> matches;
+  final DateTime fetchedAt;
+
+  /// True when these matches were loaded from the on-disk cache rather than a
+  /// fresh network response.
+  final bool fromCache;
+
+  /// Set when a pull-to-refresh failed but we kept showing existing data.
+  final String? refreshError;
+
+  const MatchesData({
+    required this.matches,
+    required this.fetchedAt,
+    this.fromCache = false,
+    this.refreshError,
+  });
+
+  MatchesData copyWith({bool? fromCache, String? refreshError}) => MatchesData(
+        matches: matches,
+        fetchedAt: fetchedAt,
+        fromCache: fromCache ?? this.fromCache,
+        refreshError: refreshError,
+      );
+}
+
+final footballApiClientProvider = Provider<FootballApiClient>((ref) {
+  final client = FootballApiClient();
+  ref.onDispose(client.dispose);
+  return client;
+});
+
+final matchesCacheProvider = Provider<MatchesCache>((ref) => MatchesCache());
+
+final matchesRepositoryProvider = Provider<MatchesRepository>((ref) {
+  return MatchesRepository(
+    ref.watch(footballApiClientProvider),
+    ref.watch(matchesCacheProvider),
+  );
+});
+
+/// Owns the smart caching policy:
+///  - launch  → show cache instantly, revalidate only if stale (or no cache)
+///  - refresh → always hit the API, fall back to cache on failure
+///  - otherwise the in-memory value is reused (no API calls on tab/filter changes)
+class MatchesNotifier extends AsyncNotifier<MatchesData> {
+  MatchesRepository get _repo => ref.read(matchesRepositoryProvider);
+
+  @override
+  Future<MatchesData> build() async {
+    // No API key → just use the bundled sample, no caching needed.
+    if (_repo.usingSampleData) {
+      final matches = await _repo.loadSample();
+      return MatchesData(
+        matches: matches,
+        fetchedAt: DateTime.now(),
+        fromCache: false,
+      );
+    }
+
+    final cached = await _repo.readCache();
+    if (cached != null) {
+      // Stale-while-revalidate: show cache now, refresh in the background only
+      // when it has gone stale.
+      if (!cached.isFresh) {
+        _revalidateSilently();
+      }
+      return MatchesData(
+        matches: cached.matches,
+        fetchedAt: cached.fetchedAt,
+        fromCache: true,
+      );
+    }
+
+    // Nothing cached yet → must fetch.
+    return _fetch();
+  }
+
+  Future<MatchesData> _fetch() async {
+    final matches = await _repo.fetchFromApiAndCache();
+    return MatchesData(
+      matches: matches,
+      fetchedAt: DateTime.now(),
+      fromCache: false,
+    );
+  }
+
+  /// Background refresh that never throws — keeps cached data on failure.
+  Future<void> _revalidateSilently() async {
+    try {
+      state = AsyncData(await _fetch());
+    } catch (_) {
+      // Ignore: the cached data is still on screen.
+    }
+  }
+
+  /// Pull-to-refresh. Always calls the API; on failure keeps the current data
+  /// visible and records the error so the UI can surface it.
+  Future<void> refresh() async {
+    try {
+      state = AsyncData(await _fetch());
+    } catch (e, st) {
+      final prev = state.value;
+      if (prev != null) {
+        state = AsyncData(prev.copyWith(refreshError: e.toString()));
+      } else {
+        state = AsyncError(e, st);
+      }
+    }
+  }
+}
+
+final matchesProvider =
+    AsyncNotifierProvider<MatchesNotifier, MatchesData>(MatchesNotifier.new);
+
+/// True when results come from the bundled sample (no API key configured).
+final usingSampleDataProvider = Provider<bool>((ref) {
+  return ref.watch(matchesRepositoryProvider).usingSampleData;
+});
+
+/// Holds the currently selected filter tab.
+class MatchFilterNotifier extends Notifier<MatchFilter> {
+  @override
+  MatchFilter build() => MatchFilter.all;
+
+  void select(MatchFilter filter) => state = filter;
+}
+
+final matchFilterProvider =
+    NotifierProvider<MatchFilterNotifier, MatchFilter>(MatchFilterNotifier.new);
+
+/// Matches after applying the selected filter.
+final filteredMatchesProvider = Provider<AsyncValue<List<MatchFixture>>>((ref) {
+  final filter = ref.watch(matchFilterProvider);
+  final asyncMatches = ref.watch(matchesProvider);
+  return asyncMatches.whenData((data) {
+    final matches = data.matches;
+    return switch (filter) {
+      MatchFilter.all => matches,
+      MatchFilter.upcoming => matches.where((m) => m.isUpcoming).toList(),
+      MatchFilter.results => matches.where((m) => m.isFinished).toList(),
+      MatchFilter.live => matches.where((m) => m.isLive).toList(),
+    };
+  });
+});

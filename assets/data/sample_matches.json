@@ -1,0 +1,93 @@
+{
+  "competition": { "id": 2000, "name": "FIFA World Cup", "code": "WC" },
+  "matches": [
+    {
+      "id": 900001,
+      "utcDate": "2026-06-11T19:00:00Z",
+      "status": "FINISHED",
+      "stage": "GROUP_STAGE",
+      "group": "GROUP_A",
+      "venue": "Estadio Azteca, Mexico City",
+      "homeTeam": { "id": 2294, "name": "Mexico", "shortName": "Mexico", "tla": "MEX", "crest": "https://crests.football-data.org/2294.png" },
+      "awayTeam": { "id": 762, "name": "Argentina", "shortName": "Argentina", "tla": "ARG", "crest": "https://crests.football-data.org/762.png" },
+      "score": { "winner": "AWAY_TEAM", "duration": "REGULAR", "fullTime": { "home": 1, "away": 2 }, "halfTime": { "home": 0, "away": 1 } }
+    },
+    {
+      "id": 900002,
+      "utcDate": "2026-06-11T22:00:00Z",
+      "status": "FINISHED",
+      "stage": "GROUP_STAGE",
+      "group": "GROUP_B",
+      "venue": "SoFi Stadium, Los Angeles",
+      "homeTeam": { "id": 1118, "name": "United States", "shortName": "USA", "tla": "USA", "crest": "https://crests.football-data.org/1118.png" },
+      "awayTeam": { "id": 768, "name": "England", "shortName": "England", "tla": "ENG", "crest": "https://crests.football-data.org/768.png" },
+      "score": { "winner": "DRAW", "duration": "REGULAR", "fullTime": { "home": 1, "away": 1 }, "halfTime": { "home": 0, "away": 0 } }
+    },
+    {
+      "id": 900003,
+      "utcDate": "2026-06-12T18:00:00Z",
+      "status": "IN_PLAY",
+      "stage": "GROUP_STAGE",
+      "group": "GROUP_C",
+      "venue": "MetLife Stadium, New Jersey",
+      "homeTeam": { "id": 764, "name": "Brazil", "shortName": "Brazil", "tla": "BRA", "crest": "https://crests.football-data.org/764.png" },
+      "awayTeam": { "id": 773, "name": "France", "shortName": "France", "tla": "FRA", "crest": "https://crests.football-data.org/773.png" },
+      "score": { "winner": null, "duration": "REGULAR", "fullTime": { "home": 1, "away": 0 }, "halfTime": { "home": 1, "away": 0 } }
+    },
+    {
+      "id": 900004,
+      "utcDate": "2026-06-12T21:00:00Z",
+      "status": "TIMED",
+      "stage": "GROUP_STAGE",
+      "group": "GROUP_D",
+      "venue": "BC Place, Vancouver",
+      "homeTeam": { "id": 760, "name": "Spain", "shortName": "Spain", "tla": "ESP", "crest": "https://crests.football-data.org/760.png" },
+      "awayTeam": { "id": 765, "name": "Portugal", "shortName": "Portugal", "tla": "POR", "crest": "https://crests.football-data.org/765.png" },
+      "score": { "winner": null, "duration": "REGULAR", "fullTime": { "home": null, "away": null }, "halfTime": { "home": null, "away": null } }
+    },
+    {
+      "id": 900005,
+      "utcDate": "2026-06-13T16:00:00Z",
+      "status": "TIMED",
+      "stage": "GROUP_STAGE",
+      "group": "GROUP_E",
+      "venue": "AT&T Stadium, Dallas",
+      "homeTeam": { "id": 759, "name": "Germany", "shortName": "Germany", "tla": "GER", "crest": "https://crests.football-data.org/759.png" },
+      "awayTeam": { "id": 805, "name": "Japan", "shortName": "Japan", "tla": "JPN", "crest": "https://crests.football-data.org/805.png" },
+      "score": { "winner": null, "duration": "REGULAR", "fullTime": { "home": null, "away": null }, "halfTime": { "home": null, "away": null } }
+    },
+    {
+      "id": 900006,
+      "utcDate": "2026-06-13T19:00:00Z",
+      "status": "TIMED",
+      "stage": "GROUP_STAGE",
+      "group": "GROUP_F",
+      "venue": "Arrowhead Stadium, Kansas City",
+      "homeTeam": { "id": 758, "name": "Netherlands", "shortName": "Netherlands", "tla": "NED", "crest": "https://crests.football-data.org/8601.png" },
+      "awayTeam": { "id": 805, "name": "Croatia", "shortName": "Croatia", "tla": "CRO", "crest": "https://crests.football-data.org/799.png" },
+      "score": { "winner": null, "duration": "REGULAR", "fullTime": { "home": null, "away": null }, "halfTime": { "home": null, "away": null } }
+    },
+    {
+      "id": 900007,
+      "utcDate": "2026-06-13T22:00:00Z",
+      "status": "TIMED",
+      "stage": "GROUP_STAGE",
+      "group": "GROUP_G",
+      "venue": "Mercedes-Benz Stadium, Atlanta",
+      "homeTeam": { "id": 805, "name": "Belgium", "shortName": "Belgium", "tla": "BEL", "crest": "https://crests.football-data.org/805.png" },
+      "awayTeam": { "id": 766, "name": "Morocco", "shortName": "Morocco", "tla": "MAR", "crest": "https://crests.football-data.org/2558.png" },
+      "score": { "winner": null, "duration": "REGULAR", "fullTime": { "home": null, "away": null }, "halfTime": { "home": null, "away": null } }
+    },
+    {
+      "id": 900008,
+      "utcDate": "2026-06-14T18:00:00Z",
+      "status": "TIMED",
+      "stage": "GROUP_STAGE",
+      "group": "GROUP_H",
+      "venue": "Estadio Akron, Guadalajara",
+      "homeTeam": { "id": 805, "name": "Canada", "shortName": "Canada", "tla": "CAN", "crest": "https://crests.football-data.org/8497.png" },
+      "awayTeam": { "id": 805, "name": "Uruguay", "shortName": "Uruguay", "tla": "URU", "crest": "https://crests.football-data.org/758.png" },
+      "score": { "winner": null, "duration": "REGULAR", "fullTime": { "home": null, "away": null }, "halfTime": { "home": null, "away": null } }
+    }
+  ]
+}
