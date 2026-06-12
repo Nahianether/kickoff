@@ -4,6 +4,7 @@ import '../../core/api/football_api_client.dart';
 import 'data/matches_cache.dart';
 import 'data/matches_repository.dart';
 import 'data/models/match_fixture.dart';
+import 'data/models/team.dart';
 
 /// Which subset of matches the user is currently viewing.
 enum MatchFilter {
@@ -148,12 +149,40 @@ class MatchFilterNotifier extends Notifier<MatchFilter> {
 final matchFilterProvider =
     NotifierProvider<MatchFilterNotifier, MatchFilter>(MatchFilterNotifier.new);
 
-/// Matches after applying the selected filter.
+/// The current team search query (empty when not searching).
+class SearchQueryNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void set(String query) => state = query;
+  void clear() => state = '';
+}
+
+final searchQueryProvider =
+    NotifierProvider<SearchQueryNotifier, String>(SearchQueryNotifier.new);
+
+bool _teamMatchesQuery(Team t, String q) {
+  return t.name.toLowerCase().contains(q) ||
+      (t.shortName?.toLowerCase().contains(q) ?? false) ||
+      (t.tla?.toLowerCase().contains(q) ?? false);
+}
+
+/// Matches after applying the search query (when present) or the selected
+/// filter. A non-empty search overrides the status filter so a team's full
+/// schedule is shown.
 final filteredMatchesProvider = Provider<AsyncValue<List<MatchFixture>>>((ref) {
   final filter = ref.watch(matchFilterProvider);
+  final query = ref.watch(searchQueryProvider).trim().toLowerCase();
   final asyncMatches = ref.watch(matchesProvider);
   return asyncMatches.whenData((data) {
     final matches = data.matches;
+    if (query.isNotEmpty) {
+      return matches
+          .where((m) =>
+              _teamMatchesQuery(m.homeTeam, query) ||
+              _teamMatchesQuery(m.awayTeam, query))
+          .toList();
+    }
     return switch (filter) {
       MatchFilter.all => matches,
       MatchFilter.upcoming => matches.where((m) => m.isUpcoming).toList(),

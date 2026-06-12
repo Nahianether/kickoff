@@ -107,7 +107,7 @@ class MatchDetailScreen extends StatelessWidget {
             )
           else ...[
             Text(
-              DateFormat('HH:mm').format(match.utcDate),
+              DateFormat('h:mm a').format(match.utcDate),
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -151,7 +151,7 @@ class MatchDetailScreen extends StatelessWidget {
               [match.stageLabel, match.groupLabel].whereType<String>().join(' · ')),
           _divider(theme),
           _factRow(theme, Icons.event_outlined, 'Kick-off',
-              DateFormat('EEEE, d MMM yyyy · HH:mm').format(match.utcDate)),
+              DateFormat('EEEE, d MMM yyyy · h:mm a').format(match.utcDate)),
           if (match.venue != null) ...[
             _divider(theme),
             _factRow(theme, Icons.stadium_outlined, 'Venue', match.venue!),

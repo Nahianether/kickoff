@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart' as http;
 
 import '../../data/models/team.dart';
 
@@ -15,17 +18,11 @@ class TeamCrest extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = team.crestUrl;
-    if (url == null || url.isEmpty) return _fallback(context);
-
-    final Widget image;
-    if (url.toLowerCase().endsWith('.svg')) {
-      image = SvgPicture.network(
-        url,
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-        placeholderBuilder: (_) => _fallback(context),
-      );
+    Widget image;
+    if (url == null || url.isEmpty) {
+      image = _fallback(context);
+    } else if (url.toLowerCase().endsWith('.svg')) {
+      image = _NetworkSvgCrest(url: url, size: size, fallback: _fallback(context));
     } else {
       image = Image.network(
         url,
@@ -38,7 +35,6 @@ class TeamCrest extends StatelessWidget {
       );
     }
 
-    // Clip flags to a rounded square so they sit consistently in the layout.
     return ClipRRect(
       borderRadius: BorderRadius.circular(size * 0.12),
       child: SizedBox(width: size, height: size, child: image),
@@ -63,6 +59,70 @@ class TeamCrest extends StatelessWidget {
           color: scheme.onSurfaceVariant,
         ),
       ),
+    );
+  }
+}
+
+/// Loads an SVG crest by fetching its bytes with our own HTTP call so transient
+/// network failures are caught (instead of throwing, as SvgPicture.network
+/// does). Results — including failures — are cached for the session.
+class _NetworkSvgCrest extends StatefulWidget {
+  const _NetworkSvgCrest({
+    required this.url,
+    required this.size,
+    required this.fallback,
+  });
+
+  final String url;
+  final double size;
+  final Widget fallback;
+
+  /// url -> bytes (null means a previous load failed; don't retry this session).
+  static final Map<String, Uint8List?> _cache = {};
+
+  @override
+  State<_NetworkSvgCrest> createState() => _NetworkSvgCrestState();
+}
+
+class _NetworkSvgCrestState extends State<_NetworkSvgCrest> {
+  late final Future<Uint8List?> _future = _load(widget.url);
+
+  Future<Uint8List?> _load(String url) async {
+    if (_NetworkSvgCrest._cache.containsKey(url)) {
+      return _NetworkSvgCrest._cache[url];
+    }
+    try {
+      final res = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+        _NetworkSvgCrest._cache[url] = res.bodyBytes;
+        return res.bodyBytes;
+      }
+    } catch (_) {
+      // Swallow transient network errors and fall back to the code chip.
+    }
+    _NetworkSvgCrest._cache[url] = null;
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List?>(
+      future: _future,
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        if (snapshot.connectionState != ConnectionState.done || bytes == null) {
+          return widget.fallback;
+        }
+        return SvgPicture.memory(
+          bytes,
+          width: widget.size,
+          height: widget.size,
+          fit: BoxFit.contain,
+          placeholderBuilder: (_) => widget.fallback,
+        );
+      },
     );
   }
 }

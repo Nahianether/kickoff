@@ -10,41 +10,99 @@ import 'match_detail_screen.dart';
 import 'widgets/match_card.dart';
 import 'widgets/segmented_filter.dart';
 
-/// Home screen: World Cup fixtures & results with a segmented filter.
-class MatchesScreen extends ConsumerWidget {
+/// Home screen: World Cup fixtures & results with a segmented filter and search.
+class MatchesScreen extends ConsumerStatefulWidget {
   const MatchesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MatchesScreen> createState() => _MatchesScreenState();
+}
+
+class _MatchesScreenState extends ConsumerState<MatchesScreen> {
+  bool _searching = false;
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _openSearch() => setState(() => _searching = true);
+
+  void _closeSearch() {
+    setState(() => _searching = false);
+    _controller.clear();
+    ref.read(searchQueryProvider.notifier).clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final filtered = ref.watch(filteredMatchesProvider);
+    final query = ref.watch(searchQueryProvider).trim();
 
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 16,
-        title: const BrandTitle(),
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(52),
-          child: SegmentedFilter(),
-        ),
+        titleSpacing: _searching ? 8 : 16,
+        title: _searching ? _searchField(context) : const BrandTitle(),
+        actions: [
+          IconButton(
+            icon: Icon(_searching ? Icons.close : Icons.search),
+            tooltip: _searching ? 'Close search' : 'Search teams',
+            onPressed: _searching ? _closeSearch : _openSearch,
+          ),
+          const SizedBox(width: 4),
+        ],
+        // Hide the status filter while searching (search spans all matches).
+        bottom: _searching
+            ? null
+            : const PreferredSize(
+                preferredSize: Size.fromHeight(52),
+                child: SegmentedFilter(),
+              ),
       ),
       body: RefreshIndicator(
-        onRefresh: () => _refresh(context, ref),
+        onRefresh: _refresh,
         child: filtered.when(
           loading: () => const AppLoader(message: 'Loading fixtures…'),
           error: (err, _) => _ErrorView(
             message: err.toString(),
             onRetry: () => ref.invalidate(matchesProvider),
           ),
-          data: (matches) => _MatchList(matches: matches),
+          data: (matches) => _MatchList(
+            matches: matches,
+            emptyMessage: query.isNotEmpty
+                ? 'No matches found for “$query”.'
+                : 'No matches here yet.',
+          ),
         ),
       ),
     );
   }
 
-  Future<void> _refresh(BuildContext context, WidgetRef ref) async {
+  Widget _searchField(BuildContext context) {
+    final theme = Theme.of(context);
+    return TextField(
+      controller: _controller,
+      autofocus: true,
+      textInputAction: TextInputAction.search,
+      style: theme.textTheme.titleMedium,
+      cursorColor: theme.colorScheme.primary,
+      decoration: InputDecoration(
+        hintText: 'Search team (e.g. Brazil)…',
+        border: InputBorder.none,
+        hintStyle: theme.textTheme.titleMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+      onChanged: (v) => ref.read(searchQueryProvider.notifier).set(v),
+    );
+  }
+
+  Future<void> _refresh() async {
     await ref.read(matchesProvider.notifier).refresh();
     final err = ref.read(matchesProvider).value?.refreshError;
-    if (err != null && context.mounted) {
+    if (err != null && mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(err)));
@@ -53,19 +111,24 @@ class MatchesScreen extends ConsumerWidget {
 }
 
 class _MatchList extends StatelessWidget {
-  const _MatchList({required this.matches});
+  const _MatchList({required this.matches, required this.emptyMessage});
 
   final List<MatchFixture> matches;
+  final String emptyMessage;
 
   @override
   Widget build(BuildContext context) {
     if (matches.isEmpty) {
       return ListView(
         children: [
-          const SizedBox(height: 120),
+          const SizedBox(height: 110),
+          Icon(Icons.search_off,
+              size: 44, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(height: 12),
           Center(
             child: Text(
-              'No matches here yet.',
+              emptyMessage,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
           ),

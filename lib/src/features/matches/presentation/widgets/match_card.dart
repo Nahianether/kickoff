@@ -88,7 +88,7 @@ class MatchCard extends StatelessWidget {
             )
           else
             Text(
-              DateFormat('HH:mm').format(match.utcDate),
+              DateFormat('h:mm a').format(match.utcDate),
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),

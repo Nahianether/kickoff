@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'features/knockout/presentation/knockout_screen.dart';
 import 'features/matches/presentation/matches_screen.dart';
 import 'features/standings/presentation/standings_screen.dart';
 
@@ -17,6 +18,7 @@ class _HomeShellState extends State<HomeShell> {
   static const _pages = [
     MatchesScreen(),
     StandingsScreen(),
+    KnockoutScreen(),
   ];
 
   @override
@@ -36,6 +38,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.table_chart_outlined),
             selectedIcon: Icon(Icons.table_chart),
             label: 'Standings',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.account_tree_outlined),
+            selectedIcon: Icon(Icons.account_tree),
+            label: 'Bracket',
           ),
         ],
       ),
