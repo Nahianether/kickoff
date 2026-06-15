@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'src/app.dart';
+import 'src/features/competitions/competitions_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,9 +16,16 @@ Future<void> main() async {
     // No .env present — continue with sample data.
   }
 
+  // Resolve the saved default competition before the first frame so the app
+  // opens directly on it (no flicker through the fallback league).
+  final defaultCompetition = await loadDefaultCompetition();
+
   runApp(
-    const ProviderScope(
-      child: KickOffApp(),
+    ProviderScope(
+      overrides: [
+        bootstrapCompetitionProvider.overrideWithValue(defaultCompetition),
+      ],
+      child: const KickOffApp(),
     ),
   );
 }

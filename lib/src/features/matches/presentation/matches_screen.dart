@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../../core/widgets/football_loader.dart';
 import '../../../core/widgets/section_header.dart';
+import '../../competitions/competitions_providers.dart';
 import '../../competitions/presentation/competition_title.dart';
 import '../data/models/match_fixture.dart';
 import '../providers.dart';
@@ -41,6 +43,11 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
   Widget build(BuildContext context) {
     final filtered = ref.watch(filteredMatchesProvider);
     final query = ref.watch(searchQueryProvider).trim();
+    final filter = ref.watch(matchFilterProvider);
+    final competitionCode = ref.watch(selectedCompetitionProvider).code;
+    // Only jump to "today" on the unfiltered All view; other tabs/search start
+    // at the top where their results naturally read.
+    final autoScrollToToday = filter == MatchFilter.all && query.isEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -73,7 +80,11 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
             onRetry: () => ref.invalidate(matchesProvider),
           ),
           data: (matches) => _MatchList(
+            // A fresh key per view re-applies the initial scroll position when
+            // the competition/filter/search changes (but not on refresh).
+            key: ValueKey('$competitionCode|${filter.name}|$query'),
             matches: matches,
+            autoScrollToToday: autoScrollToToday,
             emptyMessage: query.isNotEmpty
                 ? 'No matches found for “$query”.'
                 : 'No matches here yet.',
@@ -113,11 +124,33 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
   }
 }
 
+/// One row in the match list: either a date heading or a match card.
+sealed class _ListRow {
+  const _ListRow();
+}
+
+class _HeaderRow extends _ListRow {
+  const _HeaderRow(this.day, this.count);
+  final String day;
+  final int count;
+}
+
+class _MatchRow extends _ListRow {
+  const _MatchRow(this.match);
+  final MatchFixture match;
+}
+
 class _MatchList extends StatelessWidget {
-  const _MatchList({required this.matches, required this.emptyMessage});
+  const _MatchList({
+    super.key,
+    required this.matches,
+    required this.emptyMessage,
+    this.autoScrollToToday = false,
+  });
 
   final List<MatchFixture> matches;
   final String emptyMessage;
+  final bool autoScrollToToday;
 
   @override
   Widget build(BuildContext context) {
@@ -139,18 +172,52 @@ class _MatchList extends StatelessWidget {
       );
     }
 
-    // Group matches by calendar day for readable date headers.
-    final groups = <String, List<MatchFixture>>{};
+    // matches arrive sorted ascending by date. Count per day for the headers.
+    final counts = <String, int>{};
     for (final m in matches) {
       final key = DateFormat('EEEE, d MMMM').format(m.utcDate);
-      groups.putIfAbsent(key, () => []).add(m);
+      counts[key] = (counts[key] ?? 0) + 1;
     }
 
-    final children = <Widget>[];
-    groups.forEach((day, dayMatches) {
-      children.add(_DayHeader(day: day, count: dayMatches.length));
-      for (final m in dayMatches) {
-        children.add(Padding(
+    // Flatten into a row list (header, then that day's matches), remembering the
+    // index of the first row on/after today so we can open there.
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final rows = <_ListRow>[];
+    int? todayIndex;
+    String? currentDay;
+    for (final m in matches) {
+      final day = DateFormat('EEEE, d MMMM').format(m.utcDate);
+      if (day != currentDay) {
+        currentDay = day;
+        rows.add(_HeaderRow(day, counts[day] ?? 1));
+        final dayDate = DateTime(m.utcDate.year, m.utcDate.month, m.utcDate.day);
+        if (todayIndex == null && !dayDate.isBefore(today)) {
+          todayIndex = rows.length - 1; // pin this date header to the top
+        }
+      }
+      rows.add(_MatchRow(m));
+    }
+    // Everything is in the past (e.g. a finished competition) → open at the end
+    // so the most recent matches are visible.
+    todayIndex ??= rows.length - 1;
+
+    final initialIndex = autoScrollToToday ? todayIndex : 0;
+
+    return ScrollablePositionedList.builder(
+      itemCount: rows.length,
+      initialScrollIndex: initialIndex,
+      // Leave a little breathing room above the pinned date header.
+      initialAlignment: 0.02,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(top: 4, bottom: 24),
+      itemBuilder: (context, i) {
+        final row = rows[i];
+        if (row is _HeaderRow) {
+          return _DayHeader(day: row.day, count: row.count);
+        }
+        final m = (row as _MatchRow).match;
+        return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: MatchCard(
             match: m,
@@ -160,12 +227,9 @@ class _MatchList extends StatelessWidget {
               ),
             ),
           ),
-        ));
-      }
-    });
-    children.add(const SizedBox(height: 24));
-
-    return ListView(children: children);
+        );
+      },
+    );
   }
 }
 
