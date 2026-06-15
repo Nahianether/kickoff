@@ -1,5 +1,29 @@
 import 'package:flutter/material.dart';
 
+/// A soft teal-glow gradient used as an app bar's `flexibleSpace` so headers
+/// have depth instead of sitting flat on the background.
+class HeaderGradient extends StatelessWidget {
+  const HeaderGradient({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            scheme.primary.withValues(alpha: 0.16),
+            scheme.surface.withValues(alpha: 0.0),
+          ],
+          stops: const [0.0, 0.7],
+        ),
+      ),
+    );
+  }
+}
+
 /// App logo + wordmark used as a consistent app-bar title across screens.
 class BrandTitle extends StatelessWidget {
   const BrandTitle({super.key, this.title = 'KickOff'});

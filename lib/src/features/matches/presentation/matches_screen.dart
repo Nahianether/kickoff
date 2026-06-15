@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/widgets/football_loader.dart';
+import '../../../core/widgets/section_header.dart';
 import '../../competitions/presentation/competition_title.dart';
 import '../data/models/match_fixture.dart';
 import '../providers.dart';
@@ -43,7 +44,9 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 64,
         titleSpacing: _searching ? 8 : 16,
+        flexibleSpace: const HeaderGradient(),
         title: _searching ? _searchField(context) : const CompetitionAppBarTitle(),
         actions: [
           IconButton(
@@ -145,18 +148,10 @@ class _MatchList extends StatelessWidget {
 
     final children = <Widget>[];
     groups.forEach((day, dayMatches) {
-      children.add(Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
-        child: Text(
-          day,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-      ));
+      children.add(_DayHeader(day: day, count: dayMatches.length));
       for (final m in dayMatches) {
         children.add(Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: MatchCard(
             match: m,
             onTap: () => Navigator.of(context).push(
@@ -171,6 +166,51 @@ class _MatchList extends StatelessWidget {
     children.add(const SizedBox(height: 24));
 
     return ListView(children: children);
+  }
+}
+
+/// A date heading separating one matchday's fixtures from the next.
+class _DayHeader extends StatelessWidget {
+  const _DayHeader({required this.day, required this.count});
+
+  final String day;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 14,
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            day.toUpperCase(),
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+              color: scheme.onSurface,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$count ${count == 1 ? 'match' : 'matches'}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

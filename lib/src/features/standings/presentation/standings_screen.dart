@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/football_loader.dart';
+import '../../../core/widgets/section_header.dart';
 import '../../competitions/competitions_providers.dart';
 import '../../competitions/data/competition.dart';
 import '../../competitions/presentation/competition_title.dart';
@@ -22,7 +23,9 @@ class StandingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 64,
         titleSpacing: 16,
+        flexibleSpace: const HeaderGradient(),
         title: const CompetitionAppBarTitle(),
       ),
       body: RefreshIndicator(
@@ -187,17 +190,34 @@ class _StandingsCard extends StatelessWidget {
               fontWeight: bold ? FontWeight.bold : FontWeight.normal),
         );
 
+    final scheme = theme.colorScheme;
     return _row(
-      color: qualifying
-          ? theme.colorScheme.primary.withValues(alpha: 0.06)
-          : null,
-      pos: Text(
-        r.position.toString(),
-        style: theme.textTheme.bodySmall?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: qualifying ? theme.colorScheme.primary : null,
-        ),
-      ),
+      color: qualifying ? scheme.primary.withValues(alpha: 0.07) : null,
+      pos: qualifying
+          ? Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+                border: Border.all(color: scheme.primary, width: 1.2),
+              ),
+              child: Text(
+                r.position.toString(),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: scheme.primary,
+                ),
+              ),
+            )
+          : Text(
+              r.position.toString(),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
       team: Row(
         children: [
           TeamCrest(team: r.team, size: 22),

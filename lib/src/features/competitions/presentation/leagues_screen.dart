@@ -7,8 +7,8 @@ import '../data/competition.dart';
 import 'competition_emblem.dart';
 
 /// The Leagues hub: pick a competition to view its matches, standings and
-/// (for cups) bracket. Selecting one switches the active competition and jumps
-/// back to the Matches tab via [onPicked].
+/// (for cups) bracket. Tapping a league views it; the star sets it as the
+/// default the app opens to on every launch.
 class LeaguesScreen extends ConsumerWidget {
   const LeaguesScreen({super.key, required this.onPicked});
 
@@ -17,36 +17,60 @@ class LeaguesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final selected = ref.watch(selectedCompetitionProvider);
+    final defaultComp = ref.watch(defaultCompetitionProvider);
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 64,
         titleSpacing: 16,
+        flexibleSpace: const HeaderGradient(),
         title: const BrandTitle(),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
             child: Text(
               'Competitions',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: Row(
+              children: [
+                Icon(Icons.star_rounded,
+                    size: 14, color: theme.colorScheme.primary),
+                const SizedBox(width: 4),
+                Text(
+                  'Tap to view · star sets your default league',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
+                ),
+              ],
             ),
           ),
           for (final competition in Competition.all)
             _CompetitionTile(
               competition: competition,
-              selected: competition.code == selected.code,
+              isViewing: competition.code == selected.code,
+              isDefault: competition.code == defaultComp.code,
               onTap: () {
                 ref
                     .read(selectedCompetitionProvider.notifier)
                     .select(competition);
                 onPicked();
               },
+              onSetDefault: () => ref
+                  .read(defaultCompetitionProvider.notifier)
+                  .setDefault(competition),
             ),
         ],
       ),
@@ -57,13 +81,17 @@ class LeaguesScreen extends ConsumerWidget {
 class _CompetitionTile extends StatelessWidget {
   const _CompetitionTile({
     required this.competition,
-    required this.selected,
+    required this.isViewing,
+    required this.isDefault,
     required this.onTap,
+    required this.onSetDefault,
   });
 
   final Competition competition;
-  final bool selected;
+  final bool isViewing;
+  final bool isDefault;
   final VoidCallback onTap;
+  final VoidCallback onSetDefault;
 
   @override
   Widget build(BuildContext context) {
@@ -75,15 +103,15 @@ class _CompetitionTile extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: selected ? scheme.primary : scheme.outlineVariant,
-            width: selected ? 1.6 : 1,
+            color: isViewing ? scheme.primary : scheme.outlineVariant,
+            width: isViewing ? 1.6 : 1,
           ),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
             child: Row(
               children: [
                 SizedBox(
@@ -98,11 +126,22 @@ class _CompetitionTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        competition.shortName,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              competition.shortName,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (isDefault) ...[
+                            const SizedBox(width: 8),
+                            _defaultPill(theme),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Row(
@@ -114,23 +153,43 @@ class _CompetitionTile extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          if (competition.hasKnockout)
-                            _tag(theme, 'Cup')
-                          else
-                            _tag(theme, 'League'),
+                          _tag(theme, competition.hasKnockout ? 'Cup' : 'League'),
                         ],
                       ),
                     ],
                   ),
                 ),
-                if (selected)
-                  Icon(Icons.check_circle, color: scheme.primary, size: 22)
-                else
-                  Icon(Icons.chevron_right,
-                      color: scheme.onSurfaceVariant, size: 22),
+                IconButton(
+                  onPressed: onSetDefault,
+                  tooltip: isDefault
+                      ? 'Your default league'
+                      : 'Set as default league',
+                  icon: Icon(
+                    isDefault ? Icons.star_rounded : Icons.star_border_rounded,
+                    color: isDefault ? const Color(0xFFE0A714) : scheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _defaultPill(ThemeData theme) {
+    final scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        'Default',
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: scheme.primary,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
