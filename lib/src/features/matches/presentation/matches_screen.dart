@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/widgets/football_loader.dart';
-import '../../../core/widgets/section_header.dart';
+import '../../competitions/presentation/competition_title.dart';
 import '../data/models/match_fixture.dart';
 import '../providers.dart';
 import 'match_detail_screen.dart';
@@ -44,7 +44,7 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: _searching ? 8 : 16,
-        title: _searching ? _searchField(context) : const BrandTitle(),
+        title: _searching ? _searchField(context) : const CompetitionAppBarTitle(),
         actions: [
           IconButton(
             icon: Icon(_searching ? Icons.close : Icons.search),

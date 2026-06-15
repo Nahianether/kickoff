@@ -1,79 +1,67 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../matches/data/models/match_fixture.dart';
-import '../../matches/data/models/team.dart';
+import '../../competitions/competitions_providers.dart';
+import '../../competitions/data/competition.dart';
 import '../../matches/providers.dart';
 import '../data/standing_row.dart';
+import '../data/standings_repository.dart';
 
-/// Computes group standings from the loaded matches.
+final standingsRepositoryProvider = Provider<StandingsRepository>((ref) {
+  return StandingsRepository(
+    ref.watch(footballApiClientProvider),
+    ref.watch(footballCacheProvider),
+  );
+});
+
+/// Standings for the currently selected competition.
 ///
-/// Only group-stage matches are considered. Finished matches contribute to the
-/// stats; upcoming matches still register the teams so every group lists its
-/// participants even before kickoff.
-Map<String, List<StandingRow>> computeStandings(List<MatchFixture> matches) {
-  // group key -> (team key -> row)
-  final groups = <String, Map<String, StandingRow>>{};
+/// Live path: read the per-competition disk cache, serve it if fresh, otherwise
+/// fetch from the API (falling back to the stale cache on failure). No-key World
+/// Cup path: compute group tables from the bundled sample matches.
+///
+/// Rebuilds automatically when the selected competition changes.
+final standingsProvider =
+    FutureProvider<List<StandingsTable>>((ref) async {
+  final competition = ref.watch(selectedCompetitionProvider);
+  final code = competition.code;
+  final repo = ref.watch(standingsRepositoryProvider);
 
-  String teamKey(Team t) => t.id?.toString() ?? t.name;
-
-  for (final m in matches) {
-    final group = m.group;
-    if (group == null) continue; // skip knockout matches
-
-    final table = groups.putIfAbsent(group, () => {});
-    final home = table.putIfAbsent(
-        teamKey(m.homeTeam), () => StandingRow(team: m.homeTeam));
-    final away = table.putIfAbsent(
-        teamKey(m.awayTeam), () => StandingRow(team: m.awayTeam));
-
-    if (!m.isFinished || !m.score.hasResult) continue;
-
-    final hg = m.score.homeFullTime!;
-    final ag = m.score.awayFullTime!;
-
-    home.played++;
-    away.played++;
-    home.goalsFor += hg;
-    home.goalsAgainst += ag;
-    away.goalsFor += ag;
-    away.goalsAgainst += hg;
-
-    if (hg > ag) {
-      home.won++;
-      away.lost++;
-    } else if (hg < ag) {
-      away.won++;
-      home.lost++;
-    } else {
-      home.drawn++;
-      away.drawn++;
-    }
+  // No API key → only the World Cup has data (computed from sample matches).
+  final matchesRepo = ref.watch(matchesRepositoryProvider);
+  if (matchesRepo.usesSample(competition)) {
+    final matches = await matchesRepo.loadSample();
+    return computeStandingsFromMatches(matches);
   }
 
-  // Sort rows within each group (simplified FIFA order:
-  // points -> goal difference -> goals for -> name).
-  final result = <String, List<StandingRow>>{};
-  final sortedGroupKeys = groups.keys.toList()..sort();
-  for (final key in sortedGroupKeys) {
-    final rows = groups[key]!.values.toList()
-      ..sort((a, b) {
-        final byPoints = b.points.compareTo(a.points);
-        if (byPoints != 0) return byPoints;
-        final byGd = b.goalDifference.compareTo(a.goalDifference);
-        if (byGd != 0) return byGd;
-        final byGf = b.goalsFor.compareTo(a.goalsFor);
-        if (byGf != 0) return byGf;
-        return a.team.displayName.compareTo(b.team.displayName);
-      });
-    result[key] = rows;
+  final cached = await repo.readCache(code);
+  if (cached != null && cached.isFresh) return cached.tables;
+
+  try {
+    return await repo.fetchAndCache(code);
+  } catch (e) {
+    if (cached != null) return cached.tables; // serve stale on failure
+    rethrow;
   }
-  return result;
+});
+
+/// How many top rows of a table qualify (for the highlight + legend), based on
+/// competition type and the kind of table.
+int qualifyingCount(Competition competition, StandingsTable table) {
+  // World Cup groups: top 2 advance.
+  if (competition.code == Competition.worldCup.code) return 2;
+  // Champions League league phase: top 8 advance directly to the last 16.
+  if (competition.code == Competition.championsLeague.code) return 8;
+  // Domestic leagues: top 4 (Champions League qualification spots).
+  return 4;
 }
 
-/// Per-group standings derived from [matchesProvider]. Keyed by API group code
-/// (e.g. "GROUP_A"), each value already sorted for display.
-final standingsProvider =
-    Provider<AsyncValue<Map<String, List<StandingRow>>>>((ref) {
-  final asyncMatches = ref.watch(matchesProvider);
-  return asyncMatches.whenData((data) => computeStandings(data.matches));
-});
+/// Short legend text describing what the highlight means for [competition].
+String qualifyingLegend(Competition competition) {
+  if (competition.code == Competition.worldCup.code) {
+    return 'Top two of each group advance to the knockouts';
+  }
+  if (competition.code == Competition.championsLeague.code) {
+    return 'Top eight advance directly to the round of 16';
+  }
+  return 'Top four qualify for the Champions League';
+}

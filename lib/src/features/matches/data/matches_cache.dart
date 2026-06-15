@@ -8,46 +8,49 @@ class RawCache {
   const RawCache(this.json, this.fetchedAt);
 }
 
-/// Persists the raw World Cup matches response to disk (shared_preferences) so
-/// the app can show data instantly on launch and survive offline / rate limits.
+/// Persists raw API responses to disk (shared_preferences) keyed by a logical
+/// name (e.g. "matches_PL", "standings_CL") so each competition caches
+/// independently. This lets the app show data instantly on launch and survive
+/// offline / rate limits.
 ///
 /// Every operation is fail-safe: if the platform plugin is unavailable for any
 /// reason, caching is silently skipped and the app falls back to the network
 /// rather than erroring.
-class MatchesCache {
-  static const _kData = 'wc_matches_json';
-  static const _kFetchedAt = 'wc_matches_fetched_at';
+class FootballCache {
+  String _dataKey(String key) => 'cache_data_$key';
+  String _fetchedAtKey(String key) => 'cache_at_$key';
 
-  Future<RawCache?> read() async {
+  Future<RawCache?> read(String key) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final json = prefs.getString(_kData);
-      final millis = prefs.getInt(_kFetchedAt);
+      final json = prefs.getString(_dataKey(key));
+      final millis = prefs.getInt(_fetchedAtKey(key));
       if (json == null || millis == null) return null;
       return RawCache(json, DateTime.fromMillisecondsSinceEpoch(millis));
     } catch (e) {
-      debugPrint('MatchesCache.read skipped: $e');
+      debugPrint('FootballCache.read skipped: $e');
       return null;
     }
   }
 
-  Future<void> write(String json) async {
+  Future<void> write(String key, String json) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kData, json);
-      await prefs.setInt(_kFetchedAt, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setString(_dataKey(key), json);
+      await prefs.setInt(
+          _fetchedAtKey(key), DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
-      debugPrint('MatchesCache.write skipped: $e');
+      debugPrint('FootballCache.write skipped: $e');
     }
   }
 
-  Future<void> clear() async {
+  Future<void> clear(String key) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_kData);
-      await prefs.remove(_kFetchedAt);
+      await prefs.remove(_dataKey(key));
+      await prefs.remove(_fetchedAtKey(key));
     } catch (e) {
-      debugPrint('MatchesCache.clear skipped: $e');
+      debugPrint('FootballCache.clear skipped: $e');
     }
   }
 }

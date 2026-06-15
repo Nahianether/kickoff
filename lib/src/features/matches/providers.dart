@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/football_api_client.dart';
+import '../competitions/competitions_providers.dart';
 import 'data/matches_cache.dart';
 import 'data/matches_repository.dart';
 import 'data/models/match_fixture.dart';
@@ -50,26 +51,31 @@ final footballApiClientProvider = Provider<FootballApiClient>((ref) {
   return client;
 });
 
-final matchesCacheProvider = Provider<MatchesCache>((ref) => MatchesCache());
+final footballCacheProvider = Provider<FootballCache>((ref) => FootballCache());
 
 final matchesRepositoryProvider = Provider<MatchesRepository>((ref) {
   return MatchesRepository(
     ref.watch(footballApiClientProvider),
-    ref.watch(matchesCacheProvider),
+    ref.watch(footballCacheProvider),
   );
 });
 
-/// Owns the smart caching policy:
-///  - launch  → show cache instantly, revalidate only if stale (or no cache)
+/// Owns the smart caching policy for the currently selected competition:
+///  - launch / switch → show cache instantly, revalidate only if stale
 ///  - refresh → always hit the API, fall back to cache on failure
 ///  - otherwise the in-memory value is reused (no API calls on tab/filter changes)
+///
+/// Rebuilds automatically whenever the selected competition changes.
 class MatchesNotifier extends AsyncNotifier<MatchesData> {
   MatchesRepository get _repo => ref.read(matchesRepositoryProvider);
 
   @override
   Future<MatchesData> build() async {
-    // No API key → just use the bundled sample, no caching needed.
-    if (_repo.usingSampleData) {
+    final competition = ref.watch(selectedCompetitionProvider);
+    final code = competition.code;
+
+    // No API key → only the World Cup has bundled sample data.
+    if (_repo.usesSample(competition)) {
       final matches = await _repo.loadSample();
       return MatchesData(
         matches: matches,
@@ -78,12 +84,12 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
       );
     }
 
-    final cached = await _repo.readCache();
+    final cached = await _repo.readCache(code);
     if (cached != null) {
       // Stale-while-revalidate: show cache now, refresh in the background only
       // when it has gone stale.
       if (!cached.isFresh) {
-        _revalidateSilently();
+        _revalidateSilently(code);
       }
       return MatchesData(
         matches: cached.matches,
@@ -93,11 +99,11 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
     }
 
     // Nothing cached yet → must fetch.
-    return _fetch();
+    return _fetch(code);
   }
 
-  Future<MatchesData> _fetch() async {
-    final matches = await _repo.fetchFromApiAndCache();
+  Future<MatchesData> _fetch(String code) async {
+    final matches = await _repo.fetchFromApiAndCache(code);
     return MatchesData(
       matches: matches,
       fetchedAt: DateTime.now(),
@@ -106,9 +112,9 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
   }
 
   /// Background refresh that never throws — keeps cached data on failure.
-  Future<void> _revalidateSilently() async {
+  Future<void> _revalidateSilently(String code) async {
     try {
-      state = AsyncData(await _fetch());
+      state = AsyncData(await _fetch(code));
     } catch (_) {
       // Ignore: the cached data is still on screen.
     }
@@ -117,8 +123,9 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
   /// Pull-to-refresh. Always calls the API; on failure keeps the current data
   /// visible and records the error so the UI can surface it.
   Future<void> refresh() async {
+    final code = ref.read(selectedCompetitionProvider).code;
     try {
-      state = AsyncData(await _fetch());
+      state = AsyncData(await _fetch(code));
     } catch (e, st) {
       final prev = state.value;
       if (prev != null) {
@@ -133,9 +140,11 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
 final matchesProvider =
     AsyncNotifierProvider<MatchesNotifier, MatchesData>(MatchesNotifier.new);
 
-/// True when results come from the bundled sample (no API key configured).
+/// True when the current competition's results come from the bundled sample
+/// (no API key configured and viewing the World Cup).
 final usingSampleDataProvider = Provider<bool>((ref) {
-  return ref.watch(matchesRepositoryProvider).usingSampleData;
+  final competition = ref.watch(selectedCompetitionProvider);
+  return ref.watch(matchesRepositoryProvider).usesSample(competition);
 });
 
 /// Holds the currently selected filter tab.

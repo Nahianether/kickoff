@@ -2,49 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/football_loader.dart';
-import '../../../core/widgets/section_header.dart';
-import '../../matches/providers.dart';
+import '../../competitions/competitions_providers.dart';
+import '../../competitions/data/competition.dart';
+import '../../competitions/presentation/competition_title.dart';
+import '../../matches/presentation/widgets/team_crest.dart';
 import '../application/standings_provider.dart';
 import '../data/standing_row.dart';
-import '../../matches/presentation/widgets/team_crest.dart';
 
-/// Group standings, computed from results. One table per group.
+/// Standings for the selected competition: a single league table, group tables
+/// (World Cup), or the Champions League "league phase" — whatever the API
+/// returns. Qualifying rows are highlighted.
 class StandingsScreen extends ConsumerWidget {
   const StandingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final standings = ref.watch(standingsProvider);
+    final competition = ref.watch(selectedCompetitionProvider);
 
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: const BrandTitle(),
+        title: const CompetitionAppBarTitle(),
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.read(matchesProvider.notifier).refresh(),
+        onRefresh: () async => ref.invalidate(standingsProvider),
         child: standings.when(
           loading: () => const AppLoader(message: 'Loading standings…'),
           error: (err, _) => ListView(
             children: [
               const SizedBox(height: 120),
-              Center(child: Text('Could not load standings.\n$err',
-                  textAlign: TextAlign.center)),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text('Could not load standings.\n$err',
+                      textAlign: TextAlign.center),
+                ),
+              ),
             ],
           ),
-          data: (groups) {
-            if (groups.isEmpty) {
+          data: (tables) {
+            if (tables.isEmpty) {
               return ListView(children: const [
                 SizedBox(height: 120),
-                Center(child: Text('No group data yet.')),
+                Center(child: Text('No standings available yet.')),
               ]);
             }
             return ListView(
               padding: const EdgeInsets.only(top: 4, bottom: 24),
               children: [
-                const _Legend(),
-                for (final entry in groups.entries)
-                  _GroupTable(groupCode: entry.key, rows: entry.value),
+                _Legend(text: qualifyingLegend(competition)),
+                for (final table in tables)
+                  _StandingsCard(
+                    competition: competition,
+                    table: table,
+                  ),
               ],
             );
           },
@@ -56,14 +68,16 @@ class StandingsScreen extends ConsumerWidget {
 
 /// Small legend explaining the highlighted qualifying rows.
 class _Legend extends StatelessWidget {
-  const _Legend();
+  const _Legend({required this.text});
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Row(
         children: [
           Container(
@@ -76,10 +90,12 @@ class _Legend extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            'Top two of each group advance to the knockouts',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -88,40 +104,39 @@ class _Legend extends StatelessWidget {
   }
 }
 
-class _GroupTable extends StatelessWidget {
-  const _GroupTable({required this.groupCode, required this.rows});
+class _StandingsCard extends StatelessWidget {
+  const _StandingsCard({required this.competition, required this.table});
 
-  final String groupCode;
-  final List<StandingRow> rows;
-
-  String get _title {
-    final parts = groupCode.split('_');
-    return parts.length >= 2 ? 'Group ${parts.last.toUpperCase()}' : groupCode;
-  }
+  final Competition competition;
+  final StandingsTable table;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final advance = qualifyingCount(competition, table);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
       child: Card(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  _title,
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+            if (table.label != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    table.label!,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-            ),
+              )
+            else
+              const SizedBox(height: 8),
             _headerRow(theme),
             const Divider(height: 1),
-            for (var i = 0; i < rows.length; i++)
-              _dataRow(context, theme, i + 1, rows[i]),
+            for (final r in table.rows)
+              _dataRow(context, theme, r, qualifying: r.position <= advance),
             const SizedBox(height: 8),
           ],
         ),
@@ -163,8 +178,8 @@ class _GroupTable extends StatelessWidget {
     );
   }
 
-  Widget _dataRow(BuildContext context, ThemeData theme, int pos, StandingRow r) {
-    final qualifying = pos <= 2; // top 2 advance from each group
+  Widget _dataRow(BuildContext context, ThemeData theme, StandingRow r,
+      {required bool qualifying}) {
     final numStyle = theme.textTheme.bodySmall;
     Widget n(int v, {bool bold = false}) => Text(
           v.toString(),
@@ -177,7 +192,7 @@ class _GroupTable extends StatelessWidget {
           ? theme.colorScheme.primary.withValues(alpha: 0.06)
           : null,
       pos: Text(
-        pos.toString(),
+        r.position.toString(),
         style: theme.textTheme.bodySmall?.copyWith(
           fontWeight: FontWeight.bold,
           color: qualifying ? theme.colorScheme.primary : null,

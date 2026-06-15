@@ -4,6 +4,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../../../core/api/api_config.dart';
 import '../../../core/api/football_api_client.dart';
+import '../../competitions/data/competition.dart';
 import 'matches_cache.dart';
 import 'models/match_fixture.dart';
 
@@ -26,26 +27,34 @@ class CachedMatches {
   }
 }
 
-/// Loads World Cup matches from the live API (with disk caching) or, when no API
-/// key is configured, from a bundled sample file.
+/// Loads a competition's matches from the live API (with per-competition disk
+/// caching) or, for the World Cup when no API key is configured, from a bundled
+/// sample file so the app still runs out of the box.
 class MatchesRepository {
   MatchesRepository(this._client, this._cache);
 
   final FootballApiClient _client;
-  final MatchesCache _cache;
+  final FootballCache _cache;
 
-  /// True when results come from the bundled sample (no API key configured).
-  bool get usingSampleData => !ApiConfig.hasKey;
+  String _cacheKey(String code) => 'matches_$code';
 
-  /// Reads the bundled sample fixtures (used when there is no API key).
+  /// True when there is no API key at all.
+  bool get hasKey => ApiConfig.hasKey;
+
+  /// True when [competition] should be served from the bundled sample, i.e. no
+  /// API key and it's the World Cup (the only competition with sample data).
+  bool usesSample(Competition competition) =>
+      !ApiConfig.hasKey && competition.code == Competition.worldCup.code;
+
+  /// Reads the bundled World Cup sample fixtures (used when there is no API key).
   Future<List<MatchFixture>> loadSample() async {
     final raw = await rootBundle.loadString('assets/data/sample_matches.json');
     return _parseMatches(jsonDecode(raw) as Map<String, dynamic>);
   }
 
-  /// Returns the cached matches if any have been stored, else null.
-  Future<CachedMatches?> readCache() async {
-    final raw = await _cache.read();
+  /// Returns the cached matches for [code] if any have been stored, else null.
+  Future<CachedMatches?> readCache(String code) async {
+    final raw = await _cache.read(_cacheKey(code));
     if (raw == null) return null;
     try {
       final matches =
@@ -56,10 +65,10 @@ class MatchesRepository {
     }
   }
 
-  /// Fetches from the API and writes the raw response to the cache.
-  Future<List<MatchFixture>> fetchFromApiAndCache() async {
-    final json = await _client.getCompetitionMatches(ApiConfig.worldCupCode);
-    await _cache.write(jsonEncode(json));
+  /// Fetches [code]'s matches from the API and writes the raw response to cache.
+  Future<List<MatchFixture>> fetchFromApiAndCache(String code) async {
+    final json = await _client.getCompetitionMatches(code);
+    await _cache.write(_cacheKey(code), jsonEncode(json));
     return _parseMatches(json);
   }
 

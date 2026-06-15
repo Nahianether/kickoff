@@ -25,8 +25,18 @@ class FootballApiClient {
       };
 
   /// GET /competitions/{code}/matches
-  Future<Map<String, dynamic>> getCompetitionMatches(String competitionCode) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}/competitions/$competitionCode/matches');
+  Future<Map<String, dynamic>> getCompetitionMatches(String competitionCode) {
+    return _getJson('/competitions/$competitionCode/matches');
+  }
+
+  /// GET /competitions/{code}/standings
+  Future<Map<String, dynamic>> getCompetitionStandings(String competitionCode) {
+    return _getJson('/competitions/$competitionCode/standings');
+  }
+
+  /// Shared GET helper: handles rate limiting and error extraction.
+  Future<Map<String, dynamic>> _getJson(String path) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
     final response = await _client.get(uri, headers: _headers);
 
     // football-data.org throttles the free tier (10 req/min). On 429 it returns

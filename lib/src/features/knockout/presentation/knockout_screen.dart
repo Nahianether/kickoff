@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/widgets/football_loader.dart';
-import '../../../core/widgets/section_header.dart';
+import '../../competitions/presentation/competition_title.dart';
 import '../../matches/data/models/match_fixture.dart';
 import '../../matches/presentation/match_detail_screen.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
@@ -19,7 +19,7 @@ class KnockoutScreen extends ConsumerWidget {
     final knockout = ref.watch(knockoutProvider);
 
     return Scaffold(
-      appBar: AppBar(titleSpacing: 16, title: const BrandTitle()),
+      appBar: AppBar(titleSpacing: 16, title: const CompetitionAppBarTitle()),
       body: RefreshIndicator(
         onRefresh: () => ref.read(matchesProvider.notifier).refresh(),
         child: knockout.when(

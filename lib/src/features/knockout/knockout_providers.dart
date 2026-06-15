@@ -16,18 +16,25 @@ class KnockoutRound {
   });
 }
 
-/// Display order and labels for knockout stages.
+/// Display order for knockout stages. Membership here also defines what counts
+/// as a knockout stage, so non-knockout stages (GROUP_STAGE, LEAGUE_STAGE) are
+/// excluded from the bracket.
 const Map<String, int> _stageOrder = {
-  'LAST_32': 0,
-  'LAST_16': 1,
-  'QUARTER_FINALS': 2,
-  'SEMI_FINALS': 3,
-  'THIRD_PLACE': 4,
-  'FINAL': 5,
+  'PLAY_OFFS': 0,
+  'PLAYOFFS': 0,
+  'LAST_32': 1,
+  'LAST_16': 2,
+  'QUARTER_FINALS': 3,
+  'SEMI_FINALS': 4,
+  'THIRD_PLACE': 5,
+  'FINAL': 6,
 };
 
 String knockoutStageLabel(String stage) {
   switch (stage) {
+    case 'PLAY_OFFS':
+    case 'PLAYOFFS':
+      return 'Play-offs';
     case 'LAST_32':
       return 'Round of 32';
     case 'LAST_16':
@@ -58,8 +65,9 @@ final knockoutProvider = Provider<AsyncValue<List<KnockoutRound>>>((ref) {
   return asyncMatches.whenData((data) {
     final byStage = <String, List<MatchFixture>>{};
     for (final m in data.matches) {
-      if (m.group != null) continue; // skip group-stage matches
-      if (m.stage == 'GROUP_STAGE') continue;
+      // Only true knockout stages (excludes GROUP_STAGE and the Champions
+      // League LEAGUE_STAGE, which belong in standings, not the bracket).
+      if (!_stageOrder.containsKey(m.stage)) continue;
       byStage.putIfAbsent(m.stage, () => []).add(m);
     }
 
