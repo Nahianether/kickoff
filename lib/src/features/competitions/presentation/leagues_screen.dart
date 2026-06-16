@@ -23,7 +23,6 @@ class LeaguesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final selected = ref.watch(selectedCompetitionProvider);
-    final defaultComp = ref.watch(defaultCompetitionProvider);
     final followCount = ref.watch(favouriteTeamsProvider).length;
 
     return Scaffold(
@@ -99,34 +98,23 @@ class LeaguesScreen extends ConsumerWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            child: Row(
-              children: [
-                Icon(Icons.star_rounded,
-                    size: 14, color: theme.colorScheme.primary),
-                const SizedBox(width: 4),
-                Text(
-                  'Tap to view · star sets your default league',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+            child: Text(
+              'Tap a league to follow it — the app reopens to your last one.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           for (final competition in Competition.all)
             _CompetitionTile(
               competition: competition,
               isViewing: competition.code == selected.code,
-              isDefault: competition.code == defaultComp.code,
               onTap: () {
                 ref
                     .read(selectedCompetitionProvider.notifier)
                     .select(competition);
                 onPicked();
               },
-              onSetDefault: () => ref
-                  .read(defaultCompetitionProvider.notifier)
-                  .setDefault(competition),
             ),
         ],
       ),
@@ -138,16 +126,12 @@ class _CompetitionTile extends StatelessWidget {
   const _CompetitionTile({
     required this.competition,
     required this.isViewing,
-    required this.isDefault,
     required this.onTap,
-    required this.onSetDefault,
   });
 
   final Competition competition;
   final bool isViewing;
-  final bool isDefault;
   final VoidCallback onTap;
-  final VoidCallback onSetDefault;
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +151,7 @@ class _CompetitionTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Row(
               children: [
                 SizedBox(
@@ -193,9 +177,9 @@ class _CompetitionTile extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (isDefault) ...[
+                          if (isViewing) ...[
                             const SizedBox(width: 8),
-                            _defaultPill(theme),
+                            _currentPill(theme),
                           ],
                         ],
                       ),
@@ -215,15 +199,11 @@ class _CompetitionTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: onSetDefault,
-                  tooltip: isDefault
-                      ? 'Your default league'
-                      : 'Set as default league',
-                  icon: Icon(
-                    isDefault ? Icons.star_rounded : Icons.star_border_rounded,
-                    color: isDefault ? const Color(0xFFE0A714) : scheme.onSurfaceVariant,
-                  ),
+                Icon(
+                  isViewing
+                      ? Icons.check_circle_rounded
+                      : Icons.chevron_right,
+                  color: isViewing ? scheme.primary : scheme.onSurfaceVariant,
                 ),
               ],
             ),
@@ -233,7 +213,7 @@ class _CompetitionTile extends StatelessWidget {
     );
   }
 
-  Widget _defaultPill(ThemeData theme) {
+  Widget _currentPill(ThemeData theme) {
     final scheme = theme.colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -242,7 +222,7 @@ class _CompetitionTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        'Default',
+        'Current',
         style: theme.textTheme.labelSmall?.copyWith(
           color: scheme.primary,
           fontWeight: FontWeight.w700,

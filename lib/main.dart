@@ -20,14 +20,14 @@ Future<void> main() async {
 
   // Resolve persisted preferences before the first frame so the app opens
   // directly on the right league and brightness (no flicker through defaults).
-  final defaultCompetition = await loadDefaultCompetition();
+  final savedCompetition = await loadSavedCompetition();
   final themeMode = await loadThemeMode();
   final onboardingDone = await loadOnboardingDone();
 
   runApp(
     ProviderScope(
       overrides: [
-        bootstrapCompetitionProvider.overrideWithValue(defaultCompetition),
+        bootstrapCompetitionProvider.overrideWithValue(savedCompetition),
         bootstrapThemeModeProvider.overrideWithValue(themeMode),
         bootstrapOnboardingDoneProvider.overrideWithValue(onboardingDone),
       ],

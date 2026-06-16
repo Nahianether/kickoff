@@ -4,73 +4,54 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/competition.dart';
 
-const _kDefaultCompetitionKey = 'default_competition_code';
+// Kept the original key so a previously-saved league (e.g. one picked during
+// onboarding) carries over as the league the app now reopens to.
+const _kCompetitionKey = 'default_competition_code';
 
-/// Reads the persisted default competition. Called once in `main()` *before*
-/// the app starts so it opens directly on the user's default rather than
-/// flickering through the fallback (which would briefly load the wrong league).
-Future<Competition> loadDefaultCompetition() async {
+/// Reads the persisted current league before the first frame (called in
+/// `main`), so the app opens directly on the league the user last viewed
+/// rather than flickering through the fallback.
+Future<Competition> loadSavedCompetition() async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    final code = prefs.getString(_kDefaultCompetitionKey);
+    final code = prefs.getString(_kCompetitionKey);
     if (code != null) {
       return Competition.byCode(code) ?? Competition.fallback;
     }
   } catch (e) {
-    debugPrint('loadDefaultCompetition skipped: $e');
+    debugPrint('loadSavedCompetition skipped: $e');
   }
   return Competition.fallback;
 }
 
-/// The default competition resolved at boot. Overridden in `main()` with the
-/// persisted value via [loadDefaultCompetition]; the fallback here is only used
-/// if no override is supplied (e.g. tests).
+/// The league resolved at boot. Overridden in `main` with the persisted value
+/// via [loadSavedCompetition]; the fallback here is only used if no override is
+/// supplied (e.g. tests).
 final bootstrapCompetitionProvider =
     Provider<Competition>((ref) => Competition.fallback);
 
-/// Persists the user's chosen default competition.
-Future<void> _saveDefaultCompetition(String code) async {
+Future<void> _saveCompetition(String code) async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kDefaultCompetitionKey, code);
+    await prefs.setString(_kCompetitionKey, code);
   } catch (e) {
-    debugPrint('saveDefaultCompetition skipped: $e');
+    debugPrint('saveCompetition skipped: $e');
   }
 }
 
-/// The user's preferred *default* competition — the one the app opens to on
-/// every launch. Seeded synchronously from [bootstrapCompetitionProvider] so
-/// there is no async flip on startup, and updated via "set as default".
-class DefaultCompetitionNotifier extends Notifier<Competition> {
+/// The league the user is currently viewing. It is **persisted**: selecting a
+/// league makes it the one the app reopens to on the next launch (a simple
+/// "remember where I was" model — there is no separate default to manage).
+class SelectedCompetitionNotifier extends Notifier<Competition> {
   @override
   Competition build() => ref.read(bootstrapCompetitionProvider);
 
-  /// Marks [competition] as the default and persists it.
-  Future<void> setDefault(Competition competition) async {
+  /// Views [competition] and remembers it for next launch.
+  void select(Competition competition) {
+    if (competition.code == state.code) return;
     state = competition;
-    await _saveDefaultCompetition(competition.code);
+    _saveCompetition(competition.code);
   }
-}
-
-final defaultCompetitionProvider =
-    NotifierProvider<DefaultCompetitionNotifier, Competition>(
-  DefaultCompetitionNotifier.new,
-);
-
-/// The competition currently being viewed. It starts at (and follows) the
-/// default, but the user can browse other competitions for the session without
-/// changing their default. Selecting via the Leagues tab updates this; the next
-/// launch returns to the default.
-class SelectedCompetitionNotifier extends Notifier<Competition> {
-  @override
-  Competition build() {
-    // Mirror the default on launch, and whenever the default itself changes
-    // (e.g. the user just set a new default, so jump to viewing it).
-    return ref.watch(defaultCompetitionProvider);
-  }
-
-  /// Views [competition] for this session without changing the saved default.
-  void select(Competition competition) => state = competition;
 }
 
 final selectedCompetitionProvider =

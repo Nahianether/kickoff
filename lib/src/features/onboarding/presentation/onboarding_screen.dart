@@ -23,7 +23,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pages = PageController();
   int _page = 0;
-  late String _selectedCode = ref.read(defaultCompetitionProvider).code;
+  late String _selectedCode = ref.read(selectedCompetitionProvider).code;
 
   @override
   void dispose() {
@@ -34,10 +34,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _finish() => ref.read(onboardingDoneProvider.notifier).complete();
 
   void _goToTeams() {
-    // Commit the chosen league as the default before loading its teams.
+    // Set the chosen league as the current (persisted) league before loading
+    // its teams.
     final competition =
         Competition.byCode(_selectedCode) ?? Competition.fallback;
-    ref.read(defaultCompetitionProvider.notifier).setDefault(competition);
+    ref.read(selectedCompetitionProvider.notifier).select(competition);
     setState(() => _page = 1);
     _pages.animateToPage(
       1,
