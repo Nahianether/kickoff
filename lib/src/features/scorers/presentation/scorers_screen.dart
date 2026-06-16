@@ -5,6 +5,8 @@ import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/skeleton.dart';
+import '../../competitions/competitions_providers.dart';
+import '../../competitions/data/competition.dart';
 import '../../competitions/presentation/competition_title.dart';
 import '../../favourites/favourites_providers.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
@@ -21,6 +23,7 @@ class ScorersScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scorers = ref.watch(scorersProvider);
     final favIds = ref.watch(favouriteTeamIdsProvider);
+    final competition = ref.watch(selectedCompetitionProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -46,6 +49,7 @@ class ScorersScreen extends ConsumerWidget {
                 return _ScorerCard(
                   rank: i,
                   scorer: s,
+                  competition: competition,
                   followed: s.team.id != null && favIds.contains(s.team.id),
                 );
               },
@@ -79,11 +83,13 @@ class _ScorerCard extends StatelessWidget {
   const _ScorerCard({
     required this.rank,
     required this.scorer,
+    required this.competition,
     required this.followed,
   });
 
   final int rank;
   final Scorer scorer;
+  final Competition competition;
   final bool followed;
 
   @override
@@ -97,7 +103,9 @@ class _ScorerCard extends StatelessWidget {
             ? null
             : () => Navigator.of(context).push(
                   MaterialPageRoute(
-                      builder: (_) => TeamScreen(team: scorer.team)),
+                    builder: (_) => TeamScreen(
+                        team: scorer.team, competition: competition),
+                  ),
                 ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

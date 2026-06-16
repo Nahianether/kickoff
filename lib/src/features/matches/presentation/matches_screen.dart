@@ -7,6 +7,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../competitions/competitions_providers.dart';
+import '../../competitions/data/competition.dart';
 import '../../competitions/presentation/competition_title.dart';
 import '../data/models/match_fixture.dart';
 import '../providers.dart';
@@ -86,6 +87,7 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
             // the competition/filter/search changes (but not on refresh).
             key: ValueKey('$competitionCode|${filter.name}|$query'),
             matches: matches,
+            competition: competition,
             autoScrollToToday: autoScrollToToday,
             emptyIcon: _emptyIcon(query, filter),
             emptyMessage: _emptyMessage(query, filter, competition.shortName),
@@ -243,12 +245,14 @@ class _MatchList extends StatelessWidget {
   const _MatchList({
     super.key,
     required this.matches,
+    required this.competition,
     required this.emptyMessage,
     this.emptyIcon = Icons.search_off,
     this.autoScrollToToday = false,
   });
 
   final List<MatchFixture> matches;
+  final Competition competition;
   final String emptyMessage;
   final IconData emptyIcon;
   final bool autoScrollToToday;
@@ -324,7 +328,8 @@ class _MatchList extends StatelessWidget {
             match: m,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => MatchDetailScreen(match: m),
+                builder: (_) =>
+                    MatchDetailScreen(match: m, competition: competition),
               ),
             ),
           ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_error.dart';
 import '../../core/api/football_api_client.dart';
 import '../competitions/competitions_providers.dart';
+import '../competitions/data/competition.dart';
 import '../favourites/favourites_providers.dart';
 import 'data/matches_cache.dart';
 import 'data/matches_repository.dart';
@@ -142,6 +143,21 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
 
 final matchesProvider =
     AsyncNotifierProvider<MatchesNotifier, MatchesData>(MatchesNotifier.new);
+
+/// Matches for a specific competition (by code), independent of the currently
+/// selected league. Cache-first (serves any cached copy without blocking on the
+/// network) so screens like the team page can show another league's fixtures
+/// without changing the user's selection. Falls back to a fetch when nothing is
+/// cached, and to the bundled sample for the no-key World Cup.
+final competitionMatchesProvider =
+    FutureProvider.family<List<MatchFixture>, String>((ref, code) async {
+  final competition = Competition.byCode(code) ?? Competition.fallback;
+  final repo = ref.watch(matchesRepositoryProvider);
+  if (repo.usesSample(competition)) return repo.loadSample();
+  final cached = await repo.readCache(code);
+  if (cached != null) return cached.matches;
+  return repo.fetchFromApiAndCache(code);
+});
 
 /// True when the current competition's results come from the bundled sample
 /// (no API key configured and viewing the World Cup).

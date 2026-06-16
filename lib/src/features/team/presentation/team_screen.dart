@@ -5,7 +5,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/skeleton.dart';
-import '../../competitions/competitions_providers.dart';
+import '../../competitions/data/competition.dart';
 import '../../favourites/favourites_providers.dart';
 import '../../matches/data/models/match_fixture.dart';
 import '../../matches/data/models/team.dart';
@@ -16,20 +16,21 @@ import '../../matches/providers.dart';
 import '../../standings/application/standings_provider.dart';
 import '../../standings/data/standing_row.dart';
 
-/// A team's page scoped to the competition currently being viewed: its
-/// standings row plus its results and upcoming fixtures, drawn entirely from
-/// data already loaded for that competition (no extra API calls). Cross-
-/// competition history isn't available on the free API tier.
+/// A team's page scoped to [competition]: its standings row plus results and
+/// upcoming fixtures, drawn from that league's data. Loading a team this way
+/// does NOT change the user's currently-selected league, so it can be opened
+/// from search or the Following hub for any league. Cross-competition history
+/// isn't available on the free API tier.
 class TeamScreen extends ConsumerWidget {
-  const TeamScreen({super.key, required this.team});
+  const TeamScreen({super.key, required this.team, required this.competition});
 
   final Team team;
+  final Competition competition;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final competition = ref.watch(selectedCompetitionProvider);
-    final matchesAsync = ref.watch(matchesProvider);
-    final standingsAsync = ref.watch(standingsProvider);
+    final matchesAsync = ref.watch(competitionMatchesProvider(competition.code));
+    final standingsAsync = ref.watch(standingsForProvider(competition.code));
 
     return Scaffold(
       appBar: AppBar(
@@ -49,7 +50,7 @@ class TeamScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
         children: [
-          _Header(team: team),
+          _Header(team: team, competitionCode: competition.code),
           const SizedBox(height: 4),
           standingsAsync.maybeWhen(
             data: (tables) {
@@ -68,7 +69,7 @@ class TeamScreen extends ConsumerWidget {
                   child: Text('Could not load matches.\n${friendlyError(e)}',
                       textAlign: TextAlign.center)),
             ),
-            data: (data) => _matchSections(context, data.matches),
+            data: (matches) => _matchSections(context, matches),
           ),
         ],
       ),
@@ -131,7 +132,10 @@ class TeamScreen extends ConsumerWidget {
         child: MatchCard(
           match: m,
           onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => MatchDetailScreen(match: m)),
+            MaterialPageRoute(
+              builder: (_) =>
+                  MatchDetailScreen(match: m, competition: competition),
+            ),
           ),
         ),
       );
@@ -139,9 +143,10 @@ class TeamScreen extends ConsumerWidget {
 
 /// Big crest, name and a Follow toggle.
 class _Header extends ConsumerWidget {
-  const _Header({required this.team});
+  const _Header({required this.team, required this.competitionCode});
 
   final Team team;
+  final String competitionCode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -173,7 +178,8 @@ class _Header extends ConsumerWidget {
           ),
           if (team.id != null) ...[
             const SizedBox(height: 14),
-            _FollowButton(team: team, isFav: isFav),
+            _FollowButton(
+                team: team, isFav: isFav, competitionCode: competitionCode),
           ],
         ],
       ),
@@ -182,21 +188,25 @@ class _Header extends ConsumerWidget {
 }
 
 class _FollowButton extends ConsumerWidget {
-  const _FollowButton({required this.team, required this.isFav});
+  const _FollowButton({
+    required this.team,
+    required this.isFav,
+    required this.competitionCode,
+  });
 
   final Team team;
   final bool isFav;
+  final String competitionCode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final code = ref.watch(selectedCompetitionProvider).code;
     return InkWell(
       borderRadius: BorderRadius.circular(22),
       onTap: () {
         ref
             .read(favouriteTeamsProvider.notifier)
-            .toggle(team, competitionCode: code);
+            .toggle(team, competitionCode: competitionCode);
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(

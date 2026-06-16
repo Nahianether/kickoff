@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/api/api_error.dart';
 import '../../../core/widgets/football_loader.dart';
 import '../../../core/widgets/section_header.dart';
+import '../../competitions/competitions_providers.dart';
 import '../../competitions/presentation/competition_title.dart';
 import '../../matches/data/models/match_fixture.dart';
 import '../../matches/presentation/match_detail_screen.dart';
@@ -32,7 +34,7 @@ class KnockoutScreen extends ConsumerWidget {
           loading: () => const AppLoader(message: 'Loading bracket…'),
           error: (err, _) => ListView(children: [
             const SizedBox(height: 120),
-            Center(child: Text('Could not load bracket.\n$err',
+            Center(child: Text('Could not load bracket.\n${friendlyError(err)}',
                 textAlign: TextAlign.center)),
           ]),
           data: (rounds) {
@@ -141,20 +143,24 @@ class _RoundColumn extends StatelessWidget {
   }
 }
 
-class _KnockoutTile extends StatelessWidget {
+class _KnockoutTile extends ConsumerWidget {
   const _KnockoutTile({required this.match});
 
   final MatchFixture match;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final competition = ref.watch(selectedCompetitionProvider);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Card(
         child: InkWell(
           onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => MatchDetailScreen(match: match)),
+            MaterialPageRoute(
+              builder: (_) =>
+                  MatchDetailScreen(match: match, competition: competition),
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(10),

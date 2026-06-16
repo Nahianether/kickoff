@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/section_header.dart';
-import '../../competitions/competitions_providers.dart';
 import '../../competitions/presentation/competition_emblem.dart';
 import '../../matches/data/models/team.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
@@ -127,12 +126,12 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
                 ),
                 trailing: const Icon(Icons.chevron_right, size: 20),
                 onTap: () {
-                  ref
-                      .read(selectedCompetitionProvider.notifier)
-                      .select(r.competition);
+                  // Open the team scoped to its own league without changing the
+                  // user's currently-selected league.
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => TeamScreen(team: r.team),
+                      builder: (_) => TeamScreen(
+                          team: r.team, competition: r.competition),
                     ),
                   );
                 },

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../competitions/competitions_providers.dart';
+import '../../competitions/data/competition.dart';
 import '../../favourites/favourites_providers.dart';
 import '../../team/presentation/team_screen.dart';
 import '../application/match_detail_provider.dart';
@@ -15,11 +15,17 @@ import 'widgets/team_crest.dart';
 
 /// Full match preview: big scoreline / kickoff, key facts, and (when the API
 /// provides them) matchday, competition, officials and how the result was
-/// decided. Each team can be followed from here.
+/// decided. Each team can be followed or opened from here, scoped to
+/// [competition] (the league this match belongs to).
 class MatchDetailScreen extends ConsumerWidget {
-  const MatchDetailScreen({super.key, required this.match});
+  const MatchDetailScreen({
+    super.key,
+    required this.match,
+    required this.competition,
+  });
 
   final MatchFixture match;
+  final Competition competition;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -154,7 +160,10 @@ class MatchDetailScreen extends ConsumerWidget {
           onTap: team.id == null
               ? null
               : () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => TeamScreen(team: team)),
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          TeamScreen(team: team, competition: competition),
+                    ),
                   ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -175,7 +184,7 @@ class MatchDetailScreen extends ConsumerWidget {
         ),
         if (team.id != null) ...[
           const SizedBox(height: 8),
-          _FollowButton(team: team),
+          _FollowButton(team: team, competitionCode: competition.code),
         ],
       ],
     );
@@ -271,21 +280,21 @@ class MatchDetailScreen extends ConsumerWidget {
 
 /// A compact toggle that follows/unfollows a team straight from the header.
 class _FollowButton extends ConsumerWidget {
-  const _FollowButton({required this.team});
+  const _FollowButton({required this.team, required this.competitionCode});
 
   final Team team;
+  final String competitionCode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isFav = ref.watch(favouriteTeamIdsProvider).contains(team.id);
-    final code = ref.watch(selectedCompetitionProvider).code;
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () {
         ref
             .read(favouriteTeamsProvider.notifier)
-            .toggle(team, competitionCode: code);
+            .toggle(team, competitionCode: competitionCode);
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(

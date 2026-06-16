@@ -261,7 +261,10 @@ class _StandingsCard extends StatelessWidget {
       onTap: r.team.id == null
           ? null
           : () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => TeamScreen(team: r.team)),
+                MaterialPageRoute(
+                  builder: (_) =>
+                      TeamScreen(team: r.team, competition: competition),
+                ),
               ),
       color: rowColor,
       pos: qualifying

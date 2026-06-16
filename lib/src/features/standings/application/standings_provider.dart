@@ -13,17 +13,14 @@ final standingsRepositoryProvider = Provider<StandingsRepository>((ref) {
   );
 });
 
-/// Standings for the currently selected competition.
+/// Standings for a specific competition (by code).
 ///
 /// Live path: read the per-competition disk cache, serve it if fresh, otherwise
 /// fetch from the API (falling back to the stale cache on failure). No-key World
 /// Cup path: compute group tables from the bundled sample matches.
-///
-/// Rebuilds automatically when the selected competition changes.
-final standingsProvider =
-    FutureProvider<List<StandingsTable>>((ref) async {
-  final competition = ref.watch(selectedCompetitionProvider);
-  final code = competition.code;
+final standingsForProvider =
+    FutureProvider.family<List<StandingsTable>, String>((ref, code) async {
+  final competition = Competition.byCode(code) ?? Competition.fallback;
   final repo = ref.watch(standingsRepositoryProvider);
 
   // No API key → only the World Cup has data (computed from sample matches).
@@ -42,6 +39,13 @@ final standingsProvider =
     if (cached != null) return cached.tables; // serve stale on failure
     rethrow;
   }
+});
+
+/// Standings for the currently selected competition. Rebuilds automatically
+/// when the selection changes.
+final standingsProvider = FutureProvider<List<StandingsTable>>((ref) {
+  final code = ref.watch(selectedCompetitionProvider).code;
+  return ref.watch(standingsForProvider(code).future);
 });
 
 /// How many top rows of a table qualify (for the highlight + legend), based on

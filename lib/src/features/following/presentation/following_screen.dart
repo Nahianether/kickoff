@@ -6,7 +6,6 @@ import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/skeleton.dart';
-import '../../competitions/competitions_providers.dart';
 import '../../competitions/data/competition.dart';
 import '../../competitions/presentation/competition_emblem.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
@@ -138,14 +137,12 @@ class _TeamTile extends ConsumerWidget {
       onTap: competition == null
           ? null
           : () {
-              // Switch the app to this team's league, then open its page so the
-              // standings/fixtures shown are for the right competition.
-              ref
-                  .read(selectedCompetitionProvider.notifier)
-                  .select(competition!);
+              // Open the team scoped to its own league WITHOUT changing the
+              // user's currently-selected league.
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => TeamScreen(team: team.toTeam()),
+                  builder: (_) => TeamScreen(
+                      team: team.toTeam(), competition: competition!),
                 ),
               );
             },
