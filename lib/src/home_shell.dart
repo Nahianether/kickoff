@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/competitions/competitions_providers.dart';
-import 'features/competitions/presentation/leagues_screen.dart';
 import 'features/knockout/presentation/knockout_screen.dart';
 import 'features/matches/presentation/matches_screen.dart';
 import 'features/scorers/presentation/scorers_screen.dart';
 import 'features/standings/presentation/standings_screen.dart';
 
-/// Top-level shell with bottom navigation. The Bracket tab only appears for
-/// competitions that have a knockout stage (cups); leagues hide it.
+/// Top-level shell with bottom navigation. League switching, search, following
+/// and settings live in the shared top bar (see `LeagueAppBar`), so the bottom
+/// bar stays focused on content. The Bracket tab only appears for competitions
+/// that have a knockout stage (cups).
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
@@ -30,7 +31,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       const StandingsScreen(),
       const ScorersScreen(),
       if (showBracket) const KnockoutScreen(),
-      LeaguesScreen(onPicked: () => setState(() => _index = 0)),
     ];
 
     final destinations = <NavigationDestination>[
@@ -55,23 +55,24 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           selectedIcon: Icon(Icons.account_tree),
           label: 'Bracket',
         ),
-      const NavigationDestination(
-        icon: Icon(Icons.emoji_events_outlined),
-        selectedIcon: Icon(Icons.emoji_events),
-        label: 'Leagues',
-      ),
     ];
 
     // Guard against the selected index going out of range when the Bracket tab
     // appears/disappears as the competition changes.
     if (_index >= pages.length) _index = 0;
 
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: destinations,
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: scheme.outlineVariant)),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: destinations,
+        ),
       ),
     );
   }

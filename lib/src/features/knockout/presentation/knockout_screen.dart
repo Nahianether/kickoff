@@ -4,9 +4,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/widgets/football_loader.dart';
-import '../../../core/widgets/section_header.dart';
 import '../../competitions/competitions_providers.dart';
-import '../../competitions/presentation/competition_title.dart';
+import '../../competitions/presentation/league_app_bar.dart';
 import '../../matches/data/models/match_fixture.dart';
 import '../../matches/presentation/match_detail_screen.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
@@ -22,12 +21,7 @@ class KnockoutScreen extends ConsumerWidget {
     final knockout = ref.watch(knockoutProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 64,
-        titleSpacing: 16,
-        flexibleSpace: const HeaderGradient(),
-        title: const CompetitionAppBarTitle(),
-      ),
+      appBar: const LeagueAppBar(),
       body: RefreshIndicator(
         onRefresh: () => ref.read(matchesProvider.notifier).refresh(),
         child: knockout.when(

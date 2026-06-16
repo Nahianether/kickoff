@@ -4,78 +4,40 @@ import 'package:intl/intl.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../../core/api/api_error.dart';
-import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../competitions/competitions_providers.dart';
 import '../../competitions/data/competition.dart';
-import '../../competitions/presentation/competition_title.dart';
+import '../../competitions/presentation/league_app_bar.dart';
 import '../data/models/match_fixture.dart';
 import '../providers.dart';
 import 'match_detail_screen.dart';
 import 'widgets/match_card.dart';
 import 'widgets/segmented_filter.dart';
 
-/// Home screen: World Cup fixtures & results with a segmented filter and search.
-class MatchesScreen extends ConsumerStatefulWidget {
+/// Home screen: the selected competition's fixtures & results, grouped by day
+/// with a status filter. Team lookup lives in the global search (top bar).
+class MatchesScreen extends ConsumerWidget {
   const MatchesScreen({super.key});
 
   @override
-  ConsumerState<MatchesScreen> createState() => _MatchesScreenState();
-}
-
-class _MatchesScreenState extends ConsumerState<MatchesScreen> {
-  bool _searching = false;
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _openSearch() => setState(() => _searching = true);
-
-  void _closeSearch() {
-    setState(() => _searching = false);
-    _controller.clear();
-    ref.read(searchQueryProvider.notifier).clear();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final filtered = ref.watch(filteredMatchesProvider);
-    final query = ref.watch(searchQueryProvider).trim();
     final filter = ref.watch(matchFilterProvider);
     final competition = ref.watch(selectedCompetitionProvider);
     final competitionCode = competition.code;
-    // Only jump to "today" on the unfiltered All view; other tabs/search start
-    // at the top where their results naturally read.
-    final autoScrollToToday = filter == MatchFilter.all && query.isEmpty;
+    // Only jump to "today" on the unfiltered All view; other tabs start at the
+    // top where their results naturally read.
+    final autoScrollToToday = filter == MatchFilter.all;
 
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 64,
-        titleSpacing: _searching ? 8 : 16,
-        flexibleSpace: const HeaderGradient(),
-        title: _searching ? _searchField(context) : const CompetitionAppBarTitle(),
-        actions: [
-          IconButton(
-            icon: Icon(_searching ? Icons.close : Icons.search),
-            tooltip: _searching ? 'Close search' : 'Search teams',
-            onPressed: _searching ? _closeSearch : _openSearch,
-          ),
-          const SizedBox(width: 4),
-        ],
-        // Hide the status filter while searching (search spans all matches).
-        bottom: _searching
-            ? null
-            : const PreferredSize(
-                preferredSize: Size.fromHeight(52),
-                child: SegmentedFilter(),
-              ),
+      appBar: const LeagueAppBar(
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(52),
+          child: SegmentedFilter(),
+        ),
       ),
       body: RefreshIndicator(
-        onRefresh: _refresh,
+        onRefresh: () => _refresh(context, ref),
         child: filtered.when(
           loading: () => const _MatchesSkeleton(),
           error: (err, _) => _ErrorView(
@@ -84,42 +46,23 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
           ),
           data: (matches) => _MatchList(
             // A fresh key per view re-applies the initial scroll position when
-            // the competition/filter/search changes (but not on refresh).
-            key: ValueKey('$competitionCode|${filter.name}|$query'),
+            // the competition/filter changes (but not on refresh).
+            key: ValueKey('$competitionCode|${filter.name}'),
             matches: matches,
             competition: competition,
             autoScrollToToday: autoScrollToToday,
-            emptyIcon: _emptyIcon(query, filter),
-            emptyMessage: _emptyMessage(query, filter, competition.shortName),
+            emptyIcon: _emptyIcon(filter),
+            emptyMessage: _emptyMessage(filter, competition.shortName),
           ),
         ),
       ),
     );
   }
 
-  Widget _searchField(BuildContext context) {
-    final theme = Theme.of(context);
-    return TextField(
-      controller: _controller,
-      autofocus: true,
-      textInputAction: TextInputAction.search,
-      style: theme.textTheme.titleMedium,
-      cursorColor: theme.colorScheme.primary,
-      decoration: InputDecoration(
-        hintText: 'Search team (e.g. Brazil)…',
-        border: InputBorder.none,
-        hintStyle: theme.textTheme.titleMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-      onChanged: (v) => ref.read(searchQueryProvider.notifier).set(v),
-    );
-  }
-
-  Future<void> _refresh() async {
+  Future<void> _refresh(BuildContext context, WidgetRef ref) async {
     await ref.read(matchesProvider.notifier).refresh();
     final err = ref.read(matchesProvider).value?.refreshError;
-    if (err != null && mounted) {
+    if (err != null && context.mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(err)));
@@ -128,8 +71,7 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
 }
 
 /// Empty-state copy tailored to why the list is empty.
-String _emptyMessage(String query, MatchFilter filter, String competitionName) {
-  if (query.isNotEmpty) return 'No matches found for “$query”.';
+String _emptyMessage(MatchFilter filter, String competitionName) {
   return switch (filter) {
     MatchFilter.favourites =>
       'No followed teams in this competition.\nOpen a match and tap ☆ to follow a team.',
@@ -143,8 +85,7 @@ String _emptyMessage(String query, MatchFilter filter, String competitionName) {
   };
 }
 
-IconData _emptyIcon(String query, MatchFilter filter) {
-  if (query.isNotEmpty) return Icons.search_off;
+IconData _emptyIcon(MatchFilter filter) {
   return switch (filter) {
     MatchFilter.favourites => Icons.star_outline_rounded,
     MatchFilter.all => Icons.event_busy_outlined,

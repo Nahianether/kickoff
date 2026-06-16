@@ -3,11 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../competitions/competitions_providers.dart';
 import '../../competitions/data/competition.dart';
-import '../../competitions/presentation/competition_title.dart';
+import '../../competitions/presentation/league_app_bar.dart';
 import '../../favourites/favourites_providers.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
 import '../../team/presentation/team_screen.dart';
@@ -27,12 +26,7 @@ class StandingsScreen extends ConsumerWidget {
     final favIds = ref.watch(favouriteTeamIdsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 64,
-        titleSpacing: 16,
-        flexibleSpace: const HeaderGradient(),
-        title: const CompetitionAppBarTitle(),
-      ),
+      appBar: const LeagueAppBar(),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(standingsProvider),
         child: standings.when(
