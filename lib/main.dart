@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'src/app.dart';
+import 'src/core/theme/theme_mode_provider.dart';
 import 'src/features/competitions/competitions_providers.dart';
 
 Future<void> main() async {
@@ -16,14 +17,16 @@ Future<void> main() async {
     // No .env present — continue with sample data.
   }
 
-  // Resolve the saved default competition before the first frame so the app
-  // opens directly on it (no flicker through the fallback league).
+  // Resolve persisted preferences before the first frame so the app opens
+  // directly on the right league and brightness (no flicker through defaults).
   final defaultCompetition = await loadDefaultCompetition();
+  final themeMode = await loadThemeMode();
 
   runApp(
     ProviderScope(
       overrides: [
         bootstrapCompetitionProvider.overrideWithValue(defaultCompetition),
+        bootstrapThemeModeProvider.overrideWithValue(themeMode),
       ],
       child: const KickOffApp(),
     ),

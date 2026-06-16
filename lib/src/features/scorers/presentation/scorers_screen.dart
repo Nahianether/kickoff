@@ -7,6 +7,7 @@ import '../../../core/widgets/skeleton.dart';
 import '../../competitions/presentation/competition_title.dart';
 import '../../favourites/favourites_providers.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
+import '../../team/presentation/team_screen.dart';
 import '../application/scorers_provider.dart';
 import '../data/scorer.dart';
 
@@ -90,11 +91,18 @@ class _ScorerCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            _RankBadge(rank: rank),
+      child: InkWell(
+        onTap: scorer.team.id == null
+            ? null
+            : () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => TeamScreen(team: scorer.team)),
+                ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              _RankBadge(rank: rank),
             const SizedBox(width: 12),
             TeamCrest(team: scorer.team, size: 30),
             const SizedBox(width: 10),
@@ -140,6 +148,7 @@ class _ScorerCard extends StatelessWidget {
             if (scorer.penalties != null && scorer.penalties! > 0)
               _stat(theme, scorer.penalties.toString(), 'P'),
           ],
+        ),
         ),
       ),
     );

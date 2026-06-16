@@ -43,12 +43,25 @@ class AppTheme {
     return _base(scheme, cardColor: _card);
   }
 
-  /// A light variant (still teal-led) for users on a light system theme.
+  /// A light variant (still teal-led), tuned to mirror the dark theme's depth:
+  /// a soft off-white background with white cards and crisp teal accents.
   static ThemeData get light {
-    final scheme = ColorScheme.fromSeed(
+    final base = ColorScheme.fromSeed(
       seedColor: _teal,
-      primary: const Color(0xFF0F766E),
-      secondary: _teal,
+      brightness: Brightness.light,
+    );
+    final scheme = base.copyWith(
+      primary: const Color(0xFF0F766E), // deep teal — readable on white
+      onPrimary: Colors.white,
+      secondary: const Color(0xFF0F766E),
+      onSecondary: Colors.white,
+      surface: const Color(0xFFF3F6F5), // cool off-white scaffold
+      onSurface: const Color(0xFF0B1A18),
+      surfaceContainerHighest: const Color(0xFFE5EDEB), // chips / skeletons
+      surfaceContainerHigh: const Color(0xFFEDF2F1),
+      onSurfaceVariant: const Color(0xFF4F635F),
+      outlineVariant: const Color(0xFFD3DEDB),
+      outline: const Color(0xFFB7C5C2),
     );
     return _base(scheme, cardColor: Colors.white);
   }

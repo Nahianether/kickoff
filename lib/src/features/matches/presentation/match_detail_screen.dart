@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../favourites/favourites_providers.dart';
+import '../../team/presentation/team_screen.dart';
 import '../application/match_detail_provider.dart';
 import '../data/models/match_detail.dart';
 import '../data/models/match_fixture.dart';
@@ -147,13 +148,28 @@ class MatchDetailScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     return Column(
       children: [
-        TeamCrest(team: team, size: 72),
-        const SizedBox(height: 10),
-        Text(
-          team.displayName,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: team.id == null
+              ? null
+              : () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => TeamScreen(team: team)),
+                  ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Column(
+              children: [
+                TeamCrest(team: team, size: 72),
+                const SizedBox(height: 10),
+                Text(
+                  team.displayName,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         if (team.id != null) ...[

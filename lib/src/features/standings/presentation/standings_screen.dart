@@ -9,6 +9,7 @@ import '../../competitions/data/competition.dart';
 import '../../competitions/presentation/competition_title.dart';
 import '../../favourites/favourites_providers.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
+import '../../team/presentation/team_screen.dart';
 import '../application/standings_provider.dart';
 import '../data/standing_row.dart';
 
@@ -208,8 +209,9 @@ class _StandingsCard extends StatelessWidget {
     required Widget team,
     required List<Widget> stats,
     Color? color,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    final row = Container(
       color: color,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
@@ -221,6 +223,8 @@ class _StandingsCard extends StatelessWidget {
         ],
       ),
     );
+    if (onTap == null) return row;
+    return InkWell(onTap: onTap, child: row);
   }
 
   Widget _headerRow(ThemeData theme) {
@@ -253,6 +257,11 @@ class _StandingsCard extends StatelessWidget {
             ? scheme.primary.withValues(alpha: 0.07)
             : null;
     return _row(
+      onTap: r.team.id == null
+          ? null
+          : () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => TeamScreen(team: r.team)),
+              ),
       color: rowColor,
       pos: qualifying
           ? Container(

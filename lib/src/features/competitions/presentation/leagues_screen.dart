@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/section_header.dart';
+import '../../settings/presentation/settings_screen.dart';
 import '../competitions_providers.dart';
 import '../data/competition.dart';
 import 'competition_emblem.dart';
@@ -27,6 +28,16 @@ class LeaguesScreen extends ConsumerWidget {
         titleSpacing: 16,
         flexibleSpace: const HeaderGradient(),
         title: const BrandTitle(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
