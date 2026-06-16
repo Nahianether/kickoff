@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/football_loader.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../competitions/competitions_providers.dart';
 import '../../competitions/data/competition.dart';
 import '../../competitions/presentation/competition_title.dart';
+import '../../favourites/favourites_providers.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
 import '../application/standings_provider.dart';
 import '../data/standing_row.dart';
@@ -20,6 +22,7 @@ class StandingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final standings = ref.watch(standingsProvider);
     final competition = ref.watch(selectedCompetitionProvider);
+    final favIds = ref.watch(favouriteTeamIdsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -59,6 +62,7 @@ class StandingsScreen extends ConsumerWidget {
                   _StandingsCard(
                     competition: competition,
                     table: table,
+                    favouriteIds: favIds,
                   ),
               ],
             );
@@ -108,10 +112,15 @@ class _Legend extends StatelessWidget {
 }
 
 class _StandingsCard extends StatelessWidget {
-  const _StandingsCard({required this.competition, required this.table});
+  const _StandingsCard({
+    required this.competition,
+    required this.table,
+    required this.favouriteIds,
+  });
 
   final Competition competition;
   final StandingsTable table;
+  final Set<int> favouriteIds;
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +148,10 @@ class _StandingsCard extends StatelessWidget {
             _headerRow(theme),
             const Divider(height: 1),
             for (final r in table.rows)
-              _dataRow(context, theme, r, qualifying: r.position <= advance),
+              _dataRow(context, theme, r,
+                  qualifying: r.position <= advance,
+                  favourite: r.team.id != null &&
+                      favouriteIds.contains(r.team.id)),
             const SizedBox(height: 8),
           ],
         ),
@@ -182,7 +194,7 @@ class _StandingsCard extends StatelessWidget {
   }
 
   Widget _dataRow(BuildContext context, ThemeData theme, StandingRow r,
-      {required bool qualifying}) {
+      {required bool qualifying, required bool favourite}) {
     final numStyle = theme.textTheme.bodySmall;
     Widget n(int v, {bool bold = false}) => Text(
           v.toString(),
@@ -191,8 +203,14 @@ class _StandingsCard extends StatelessWidget {
         );
 
     final scheme = theme.colorScheme;
+    // A followed team's amber tint takes precedence over the qualifying tint.
+    final rowColor = favourite
+        ? AppTheme.amber.withValues(alpha: 0.10)
+        : qualifying
+            ? scheme.primary.withValues(alpha: 0.07)
+            : null;
     return _row(
-      color: qualifying ? scheme.primary.withValues(alpha: 0.07) : null,
+      color: rowColor,
       pos: qualifying
           ? Container(
               width: 22,
@@ -226,9 +244,15 @@ class _StandingsCard extends StatelessWidget {
             child: Text(
               r.team.displayName,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: favourite ? FontWeight.w700 : null,
+              ),
             ),
           ),
+          if (favourite) ...[
+            const SizedBox(width: 5),
+            const Icon(Icons.star_rounded, size: 13, color: AppTheme.amber),
+          ],
         ],
       ),
       stats: [

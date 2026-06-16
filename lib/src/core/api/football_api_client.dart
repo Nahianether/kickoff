@@ -34,6 +34,12 @@ class FootballApiClient {
     return _getJson('/competitions/$competitionCode/standings');
   }
 
+  /// GET /matches/{id} — fuller per-match detail (matchday, competition,
+  /// referees, result type). Goals/cards/subs are paid-tier only and omitted.
+  Future<Map<String, dynamic>> getMatch(int id) {
+    return _getJson('/matches/$id');
+  }
+
   /// Shared GET helper: handles rate limiting and error extraction.
   Future<Map<String, dynamic>> _getJson(String path) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path');

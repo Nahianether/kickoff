@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/football_api_client.dart';
 import '../competitions/competitions_providers.dart';
+import '../favourites/favourites_providers.dart';
 import 'data/matches_cache.dart';
 import 'data/matches_repository.dart';
 import 'data/models/match_fixture.dart';
@@ -12,7 +13,8 @@ enum MatchFilter {
   all('All'),
   upcoming('Fixtures'),
   results('Results'),
-  live('Live');
+  live('Live'),
+  favourites('★');
 
   const MatchFilter(this.label);
   final String label;
@@ -182,6 +184,7 @@ bool _teamMatchesQuery(Team t, String q) {
 final filteredMatchesProvider = Provider<AsyncValue<List<MatchFixture>>>((ref) {
   final filter = ref.watch(matchFilterProvider);
   final query = ref.watch(searchQueryProvider).trim().toLowerCase();
+  final favIds = ref.watch(favouriteTeamIdsProvider);
   final asyncMatches = ref.watch(matchesProvider);
   return asyncMatches.whenData((data) {
     final matches = data.matches;
@@ -197,6 +200,10 @@ final filteredMatchesProvider = Provider<AsyncValue<List<MatchFixture>>>((ref) {
       MatchFilter.upcoming => matches.where((m) => m.isUpcoming).toList(),
       MatchFilter.results => matches.where((m) => m.isFinished).toList(),
       MatchFilter.live => matches.where((m) => m.isLive).toList(),
+      MatchFilter.favourites => matches
+          .where((m) =>
+              favIds.contains(m.homeTeam.id) || favIds.contains(m.awayTeam.id))
+          .toList(),
     };
   });
 });

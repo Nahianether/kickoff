@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../favourites/favourites_providers.dart';
 import '../../data/models/match_fixture.dart';
 import 'status_chip.dart';
 import 'team_crest.dart';
 
 /// A tappable card summarising one match: teams, crests, and score or kickoff.
-/// Live matches get a red accent; finished matches bold the winner.
-class MatchCard extends StatelessWidget {
+/// Live matches get a red accent; finished matches bold the winner; followed
+/// teams show an amber star beside their name.
+class MatchCard extends ConsumerWidget {
   const MatchCard({super.key, required this.match, this.onTap});
 
   final MatchFixture match;
@@ -22,10 +25,11 @@ class MatchCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final accent = match.isLive ? AppTheme.live : scheme.primary;
+    final favIds = ref.watch(favouriteTeamIdsProvider);
 
     return Card(
       child: InkWell(
@@ -77,9 +81,9 @@ class MatchCard extends StatelessWidget {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            Expanded(child: _teamRow(context, home: true)),
+                            Expanded(child: _teamRow(context, favIds, home: true)),
                             _centerColumn(context),
-                            Expanded(child: _teamRow(context, home: false)),
+                            Expanded(child: _teamRow(context, favIds, home: false)),
                           ],
                         ),
                       ],
@@ -94,25 +98,38 @@ class MatchCard extends StatelessWidget {
     );
   }
 
-  Widget _teamRow(BuildContext context, {required bool home}) {
+  Widget _teamRow(BuildContext context, Set<int> favIds, {required bool home}) {
     final team = home ? match.homeTeam : match.awayTeam;
     final theme = Theme.of(context);
     final winner = _isWinner(home);
+    final isFav = team.id != null && favIds.contains(team.id);
     return Column(
       children: [
         TeamCrest(team: team, size: 40),
         const SizedBox(height: 7),
-        Text(
-          team.displayName,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: winner ? FontWeight.w800 : FontWeight.w600,
-            color: winner
-                ? theme.colorScheme.onSurface
-                : theme.colorScheme.onSurface.withValues(alpha: 0.92),
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (isFav) ...[
+              const Icon(Icons.star_rounded, size: 13, color: AppTheme.amber),
+              const SizedBox(width: 3),
+            ],
+            Flexible(
+              child: Text(
+                team.displayName,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: winner ? FontWeight.w800 : FontWeight.w600,
+                  color: winner
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.92),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

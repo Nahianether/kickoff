@@ -87,7 +87,9 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
             autoScrollToToday: autoScrollToToday,
             emptyMessage: query.isNotEmpty
                 ? 'No matches found for “$query”.'
-                : 'No matches here yet.',
+                : filter == MatchFilter.favourites
+                    ? 'No followed teams in this competition.\nOpen a match and tap ☆ to follow a team.'
+                    : 'No matches here yet.',
           ),
         ),
       ),
