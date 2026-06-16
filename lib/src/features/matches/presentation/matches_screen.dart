@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
+import '../../../core/api/api_error.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../competitions/competitions_providers.dart';
@@ -77,7 +78,7 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
         child: filtered.when(
           loading: () => const _MatchesSkeleton(),
           error: (err, _) => _ErrorView(
-            message: err.toString(),
+            message: friendlyError(err),
             onRetry: () => ref.invalidate(matchesProvider),
           ),
           data: (matches) => _MatchList(

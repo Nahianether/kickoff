@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/api_error.dart';
 import '../../core/api/football_api_client.dart';
 import '../competitions/competitions_providers.dart';
 import '../favourites/favourites_providers.dart';
@@ -131,7 +132,7 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
     } catch (e, st) {
       final prev = state.value;
       if (prev != null) {
-        state = AsyncData(prev.copyWith(refreshError: e.toString()));
+        state = AsyncData(prev.copyWith(refreshError: friendlyError(e)));
       } else {
         state = AsyncError(e, st);
       }

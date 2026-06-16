@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
+import 'features/onboarding/onboarding_providers.dart';
+import 'features/onboarding/presentation/onboarding_screen.dart';
 import 'home_shell.dart';
 
 /// Lets the user drag to scroll (and pull-to-refresh) with a mouse/trackpad,
@@ -35,7 +37,9 @@ class KickOffApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       // Defaults to the signature black & teal; user can switch in Settings.
       themeMode: ref.watch(themeModeProvider),
-      home: const HomeShell(),
+      home: ref.watch(onboardingDoneProvider)
+          ? const HomeShell()
+          : const OnboardingScreen(),
     );
   }
 }

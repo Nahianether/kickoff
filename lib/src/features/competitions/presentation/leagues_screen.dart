@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../favourites/favourites_providers.dart';
 import '../../following/presentation/following_screen.dart';
+import '../../search/presentation/global_search_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
 import '../competitions_providers.dart';
 import '../data/competition.dart';
@@ -32,6 +33,13 @@ class LeaguesScreen extends ConsumerWidget {
         flexibleSpace: const HeaderGradient(),
         title: const BrandTitle(),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search teams',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.star_outline_rounded),
             tooltip: 'Following',

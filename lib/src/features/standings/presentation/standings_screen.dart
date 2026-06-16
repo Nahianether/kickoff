@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/skeleton.dart';
@@ -42,7 +43,7 @@ class StandingsScreen extends ConsumerWidget {
               Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text('Could not load standings.\n$err',
+                  child: Text('Could not load standings.\n${friendlyError(err)}',
                       textAlign: TextAlign.center),
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/skeleton.dart';
@@ -63,7 +64,9 @@ class TeamScreen extends ConsumerWidget {
             loading: () => const _MatchesSkeleton(),
             error: (e, _) => Padding(
               padding: const EdgeInsets.all(24),
-              child: Center(child: Text('Could not load matches.\n$e')),
+              child: Center(
+                  child: Text('Could not load matches.\n${friendlyError(e)}',
+                      textAlign: TextAlign.center)),
             ),
             data: (data) => _matchSections(context, data.matches),
           ),

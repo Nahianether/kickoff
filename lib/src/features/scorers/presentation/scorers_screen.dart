@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/skeleton.dart';
@@ -32,7 +33,7 @@ class ScorersScreen extends ConsumerWidget {
         onRefresh: () async => ref.invalidate(scorersProvider),
         child: scorers.when(
           loading: () => const _ScorersSkeleton(),
-          error: (err, _) => _ErrorView(message: err.toString()),
+          error: (err, _) => _ErrorView(message: friendlyError(err)),
           data: (list) {
             if (list.isEmpty) return const _EmptyView();
             return ListView.separated(

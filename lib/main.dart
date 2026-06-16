@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'src/app.dart';
 import 'src/core/theme/theme_mode_provider.dart';
 import 'src/features/competitions/competitions_providers.dart';
+import 'src/features/onboarding/onboarding_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,12 +22,14 @@ Future<void> main() async {
   // directly on the right league and brightness (no flicker through defaults).
   final defaultCompetition = await loadDefaultCompetition();
   final themeMode = await loadThemeMode();
+  final onboardingDone = await loadOnboardingDone();
 
   runApp(
     ProviderScope(
       overrides: [
         bootstrapCompetitionProvider.overrideWithValue(defaultCompetition),
         bootstrapThemeModeProvider.overrideWithValue(themeMode),
+        bootstrapOnboardingDoneProvider.overrideWithValue(onboardingDone),
       ],
       child: const KickOffApp(),
     ),
