@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../competitions/competitions_providers.dart';
 import '../../favourites/favourites_providers.dart';
 import '../../team/presentation/team_screen.dart';
 import '../application/match_detail_provider.dart';
@@ -278,10 +279,13 @@ class _FollowButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isFav = ref.watch(favouriteTeamIdsProvider).contains(team.id);
+    final code = ref.watch(selectedCompetitionProvider).code;
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () {
-        ref.read(favouriteTeamsProvider.notifier).toggle(team);
+        ref
+            .read(favouriteTeamsProvider.notifier)
+            .toggle(team, competitionCode: code);
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(

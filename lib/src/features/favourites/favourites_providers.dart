@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../competitions/data/competition.dart';
 import '../matches/data/models/team.dart';
 import 'data/favourite_team.dart';
 
@@ -51,10 +52,12 @@ class FavouritesNotifier extends Notifier<List<FavouriteTeam>> {
   bool isFavourite(int? id) =>
       id != null && state.any((t) => t.id == id);
 
-  /// Stars [team] if it isn't already a favourite, otherwise removes it.
-  /// Teams without an id (undecided knockout slots) are ignored.
-  void toggle(Team team) {
-    final fav = FavouriteTeam.fromTeam(team);
+  /// Stars [team] if it isn't already a favourite, otherwise removes it. When
+  /// adding, the team is tagged with [competitionCode] (the league it was
+  /// followed from) so favourites can be grouped by league. Teams without an id
+  /// (undecided knockout slots) are ignored.
+  void toggle(Team team, {String competitionCode = ''}) {
+    final fav = FavouriteTeam.fromTeam(team, competitionCode: competitionCode);
     if (fav == null) return;
     final exists = state.any((t) => t.id == fav.id);
     final next = exists
@@ -80,4 +83,38 @@ final favouriteTeamsProvider =
 /// in list/standings rows.
 final favouriteTeamIdsProvider = Provider<Set<int>>((ref) {
   return ref.watch(favouriteTeamsProvider).map((t) => t.id).toSet();
+});
+
+/// Followed teams belonging to one league. [competition] is null for teams
+/// whose origin league is unknown (e.g. saved before league tagging existed).
+class FavouritesGroup {
+  final Competition? competition;
+  final List<FavouriteTeam> teams;
+  const FavouritesGroup(this.competition, this.teams);
+}
+
+/// Followed teams grouped by the league they were followed from, ordered like
+/// [Competition.all], with any untagged teams last under a null competition.
+final favouritesByLeagueProvider = Provider<List<FavouritesGroup>>((ref) {
+  final favs = ref.watch(favouriteTeamsProvider);
+  final byCode = <String, List<FavouriteTeam>>{};
+  for (final f in favs) {
+    byCode.putIfAbsent(f.competitionCode, () => []).add(f);
+  }
+
+  final groups = <FavouritesGroup>[];
+  for (final c in Competition.all) {
+    final list = byCode[c.code];
+    if (list != null && list.isNotEmpty) groups.add(FavouritesGroup(c, list));
+  }
+
+  // Anything tagged with an unknown/empty code goes into a trailing bucket.
+  final known = Competition.all.map((c) => c.code).toSet();
+  final others = <FavouriteTeam>[];
+  byCode.forEach((code, list) {
+    if (!known.contains(code)) others.addAll(list);
+  });
+  if (others.isNotEmpty) groups.add(FavouritesGroup(null, others));
+
+  return groups;
 });

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/section_header.dart';
+import '../../favourites/favourites_providers.dart';
+import '../../following/presentation/following_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
 import '../competitions_providers.dart';
 import '../data/competition.dart';
@@ -21,6 +23,7 @@ class LeaguesScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final selected = ref.watch(selectedCompetitionProvider);
     final defaultComp = ref.watch(defaultCompetitionProvider);
+    final followCount = ref.watch(favouriteTeamsProvider).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -29,6 +32,13 @@ class LeaguesScreen extends ConsumerWidget {
         flexibleSpace: const HeaderGradient(),
         title: const BrandTitle(),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.star_outline_rounded),
+            tooltip: 'Following',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const FollowingScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
@@ -43,7 +53,34 @@ class LeaguesScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Card(
+              child: ListTile(
+                leading: Icon(Icons.star_rounded,
+                    color: const Color(0xFFE0A714), size: 28),
+                title: Text(
+                  'Following',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: Text(
+                  followCount == 0
+                      ? 'Follow teams to see them grouped by league'
+                      : '$followCount team${followCount == 1 ? '' : 's'} across your leagues',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const FollowingScreen()),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 12, 8, 2),
             child: Text(
               'Competitions',
               style: theme.textTheme.titleSmall?.copyWith(

@@ -9,17 +9,24 @@ class FavouriteTeam {
   final String? tla;
   final String? crestUrl;
 
+  /// The competition code the team was followed from (e.g. "PL", "PD"). Used to
+  /// group followed teams by league. Empty for favourites saved before this was
+  /// tracked.
+  final String competitionCode;
+
   const FavouriteTeam({
     required this.id,
     required this.name,
     this.shortName,
     this.tla,
     this.crestUrl,
+    this.competitionCode = '',
   });
 
-  /// Builds a favourite from a match/standings [Team]. Returns null for teams
-  /// without an id (e.g. undecided knockout slots), which can't be followed.
-  static FavouriteTeam? fromTeam(Team team) {
+  /// Builds a favourite from a match/standings [Team], tagged with the league it
+  /// was followed from. Returns null for teams without an id (e.g. undecided
+  /// knockout slots), which can't be followed.
+  static FavouriteTeam? fromTeam(Team team, {String competitionCode = ''}) {
     final id = team.id;
     if (id == null) return null;
     return FavouriteTeam(
@@ -28,6 +35,7 @@ class FavouriteTeam {
       shortName: team.shortName,
       tla: team.tla,
       crestUrl: team.crestUrl,
+      competitionCode: competitionCode,
     );
   }
 
@@ -48,6 +56,7 @@ class FavouriteTeam {
         'shortName': shortName,
         'tla': tla,
         'crest': crestUrl,
+        'comp': competitionCode,
       };
 
   factory FavouriteTeam.fromJson(Map<String, dynamic> json) => FavouriteTeam(
@@ -56,5 +65,6 @@ class FavouriteTeam {
         shortName: json['shortName'] as String?,
         tla: json['tla'] as String?,
         crestUrl: json['crest'] as String?,
+        competitionCode: (json['comp'] ?? '') as String,
       );
 }

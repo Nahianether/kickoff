@@ -187,10 +187,13 @@ class _FollowButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final code = ref.watch(selectedCompetitionProvider).code;
     return InkWell(
       borderRadius: BorderRadius.circular(22),
       onTap: () {
-        ref.read(favouriteTeamsProvider.notifier).toggle(team);
+        ref
+            .read(favouriteTeamsProvider.notifier)
+            .toggle(team, competitionCode: code);
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(

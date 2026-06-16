@@ -14,7 +14,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final mode = ref.watch(themeModeProvider);
-    final favourites = ref.watch(favouriteTeamsProvider);
+    final groups = ref.watch(favouritesByLeagueProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -64,7 +64,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           _sectionLabel(theme, 'Followed teams'),
-          if (favourites.isEmpty)
+          if (groups.isEmpty)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -75,7 +75,7 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'No teams followed yet. Open a match and tap Follow to add one.',
+                        'No teams followed yet. Open a match or team and tap Follow to add one.',
                         style: theme.textTheme.bodyMedium,
                       ),
                     ),
@@ -84,32 +84,47 @@ class SettingsScreen extends ConsumerWidget {
               ),
             )
           else
-            Card(
-              child: Column(
-                children: [
-                  for (var i = 0; i < favourites.length; i++) ...[
-                    if (i > 0) _optionDivider(theme),
-                    ListTile(
-                      leading: TeamCrest(team: favourites[i].toTeam(), size: 32),
-                      title: Text(
-                        favourites[i].displayName,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+            // One card per league, so it's clear which teams you follow where.
+            for (final group in groups) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+                child: Text(
+                  group.competition?.shortName ?? 'Other',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Card(
+                child: Column(
+                  children: [
+                    for (var i = 0; i < group.teams.length; i++) ...[
+                      if (i > 0) _optionDivider(theme),
+                      ListTile(
+                        leading:
+                            TeamCrest(team: group.teams[i].toTeam(), size: 32),
+                        title: Text(
+                          group.teams[i].displayName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.star_rounded),
+                          color: const Color(0xFFE0A714),
+                          tooltip: 'Unfollow',
+                          onPressed: () => ref
+                              .read(favouriteTeamsProvider.notifier)
+                              .remove(group.teams[i].id),
                         ),
                       ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.star_rounded),
-                        color: const Color(0xFFE0A714),
-                        tooltip: 'Unfollow',
-                        onPressed: () => ref
-                            .read(favouriteTeamsProvider.notifier)
-                            .remove(favourites[i].id),
-                      ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 8),
+            ],
         ],
       ),
     );
