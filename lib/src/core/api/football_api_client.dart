@@ -40,6 +40,12 @@ class FootballApiClient {
     return _getJson('/matches/$id');
   }
 
+  /// GET /competitions/{code}/scorers — the competition's top scorers
+  /// (goals, assists, penalties).
+  Future<Map<String, dynamic>> getCompetitionScorers(String competitionCode) {
+    return _getJson('/competitions/$competitionCode/scorers');
+  }
+
   /// Shared GET helper: handles rate limiting and error extraction.
   Future<Map<String, dynamic>> _getJson(String path) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path');

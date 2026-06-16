@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/football_loader.dart';
 import '../../../core/widgets/section_header.dart';
+import '../../../core/widgets/skeleton.dart';
 import '../../competitions/competitions_providers.dart';
 import '../../competitions/data/competition.dart';
 import '../../competitions/presentation/competition_title.dart';
@@ -34,7 +34,7 @@ class StandingsScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(standingsProvider),
         child: standings.when(
-          loading: () => const AppLoader(message: 'Loading standings…'),
+          loading: () => const _StandingsSkeleton(),
           error: (err, _) => ListView(
             children: [
               const SizedBox(height: 120),
@@ -102,6 +102,49 @@ class _Legend extends StatelessWidget {
               text,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shimmering placeholder shown while the table loads.
+class _StandingsSkeleton extends StatelessWidget {
+  const _StandingsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer(
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 20, 12, 24),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Column(
+                children: [
+                  for (var i = 0; i < 12; i++)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      child: Row(
+                        children: const [
+                          SkeletonBox(
+                              width: 22, height: 22, shape: BoxShape.circle),
+                          SizedBox(width: 10),
+                          SkeletonBox(
+                              width: 22, height: 22, shape: BoxShape.circle),
+                          SizedBox(width: 10),
+                          Expanded(child: SkeletonBox(height: 12)),
+                          SizedBox(width: 10),
+                          SkeletonBox(width: 24, height: 12),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

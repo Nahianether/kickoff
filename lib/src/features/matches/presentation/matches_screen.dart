@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
-import '../../../core/widgets/football_loader.dart';
 import '../../../core/widgets/section_header.dart';
+import '../../../core/widgets/skeleton.dart';
 import '../../competitions/competitions_providers.dart';
 import '../../competitions/presentation/competition_title.dart';
 import '../data/models/match_fixture.dart';
@@ -44,7 +44,8 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
     final filtered = ref.watch(filteredMatchesProvider);
     final query = ref.watch(searchQueryProvider).trim();
     final filter = ref.watch(matchFilterProvider);
-    final competitionCode = ref.watch(selectedCompetitionProvider).code;
+    final competition = ref.watch(selectedCompetitionProvider);
+    final competitionCode = competition.code;
     // Only jump to "today" on the unfiltered All view; other tabs/search start
     // at the top where their results naturally read.
     final autoScrollToToday = filter == MatchFilter.all && query.isEmpty;
@@ -74,7 +75,7 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: filtered.when(
-          loading: () => const AppLoader(message: 'Loading fixtures…'),
+          loading: () => const _MatchesSkeleton(),
           error: (err, _) => _ErrorView(
             message: err.toString(),
             onRetry: () => ref.invalidate(matchesProvider),
@@ -85,11 +86,8 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
             key: ValueKey('$competitionCode|${filter.name}|$query'),
             matches: matches,
             autoScrollToToday: autoScrollToToday,
-            emptyMessage: query.isNotEmpty
-                ? 'No matches found for “$query”.'
-                : filter == MatchFilter.favourites
-                    ? 'No followed teams in this competition.\nOpen a match and tap ☆ to follow a team.'
-                    : 'No matches here yet.',
+            emptyIcon: _emptyIcon(query, filter),
+            emptyMessage: _emptyMessage(query, filter, competition.shortName),
           ),
         ),
       ),
@@ -126,6 +124,104 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
   }
 }
 
+/// Empty-state copy tailored to why the list is empty.
+String _emptyMessage(String query, MatchFilter filter, String competitionName) {
+  if (query.isNotEmpty) return 'No matches found for “$query”.';
+  return switch (filter) {
+    MatchFilter.favourites =>
+      'No followed teams in this competition.\nOpen a match and tap ☆ to follow a team.',
+    // An empty "All" view means the whole competition has no fixtures — almost
+    // always because they haven't been published yet (e.g. World Cup 2026).
+    MatchFilter.all =>
+      'Fixtures for $competitionName haven’t been published yet.\nCheck back closer to the tournament.',
+    MatchFilter.upcoming => 'No upcoming fixtures right now.',
+    MatchFilter.results => 'No results yet.',
+    MatchFilter.live => 'No live matches right now.',
+  };
+}
+
+IconData _emptyIcon(String query, MatchFilter filter) {
+  if (query.isNotEmpty) return Icons.search_off;
+  return switch (filter) {
+    MatchFilter.favourites => Icons.star_outline_rounded,
+    MatchFilter.all => Icons.event_busy_outlined,
+    MatchFilter.live => Icons.sensors_off_outlined,
+    _ => Icons.search_off,
+  };
+}
+
+/// A shimmering placeholder shown while the first fixtures load.
+class _MatchesSkeleton extends StatelessWidget {
+  const _MatchesSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer(
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(6, 4, 6, 12),
+            child: SkeletonBox(width: 160, height: 12),
+          ),
+          for (var i = 0; i < 7; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: const [
+                          SkeletonBox(width: 90, height: 10),
+                          Spacer(),
+                          SkeletonBox(width: 44, height: 16, radius: 8),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: const [
+                          Expanded(
+                            child: Column(
+                              children: [
+                                SkeletonBox(
+                                    width: 40,
+                                    height: 40,
+                                    shape: BoxShape.circle),
+                                SizedBox(height: 7),
+                                SkeletonBox(width: 60, height: 10),
+                              ],
+                            ),
+                          ),
+                          SkeletonBox(width: 52, height: 26, radius: 10),
+                          Expanded(
+                            child: Column(
+                              children: [
+                                SkeletonBox(
+                                    width: 40,
+                                    height: 40,
+                                    shape: BoxShape.circle),
+                                SizedBox(height: 7),
+                                SkeletonBox(width: 60, height: 10),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// One row in the match list: either a date heading or a match card.
 sealed class _ListRow {
   const _ListRow();
@@ -147,11 +243,13 @@ class _MatchList extends StatelessWidget {
     super.key,
     required this.matches,
     required this.emptyMessage,
+    this.emptyIcon = Icons.search_off,
     this.autoScrollToToday = false,
   });
 
   final List<MatchFixture> matches;
   final String emptyMessage;
+  final IconData emptyIcon;
   final bool autoScrollToToday;
 
   @override
@@ -160,7 +258,7 @@ class _MatchList extends StatelessWidget {
       return ListView(
         children: [
           const SizedBox(height: 110),
-          Icon(Icons.search_off,
+          Icon(emptyIcon,
               size: 44, color: Theme.of(context).colorScheme.onSurfaceVariant),
           const SizedBox(height: 12),
           Center(

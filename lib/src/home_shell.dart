@@ -5,6 +5,7 @@ import 'features/competitions/competitions_providers.dart';
 import 'features/competitions/presentation/leagues_screen.dart';
 import 'features/knockout/presentation/knockout_screen.dart';
 import 'features/matches/presentation/matches_screen.dart';
+import 'features/scorers/presentation/scorers_screen.dart';
 import 'features/standings/presentation/standings_screen.dart';
 
 /// Top-level shell with bottom navigation. The Bracket tab only appears for
@@ -27,6 +28,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final pages = <Widget>[
       const MatchesScreen(),
       const StandingsScreen(),
+      const ScorersScreen(),
       if (showBracket) const KnockoutScreen(),
       LeaguesScreen(onPicked: () => setState(() => _index = 0)),
     ];
@@ -41,6 +43,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         icon: Icon(Icons.table_chart_outlined),
         selectedIcon: Icon(Icons.table_chart),
         label: 'Standings',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.military_tech_outlined),
+        selectedIcon: Icon(Icons.military_tech),
+        label: 'Scorers',
       ),
       if (showBracket)
         const NavigationDestination(
