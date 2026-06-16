@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'src/app.dart';
 import 'src/core/theme/theme_mode_provider.dart';
 import 'src/features/competitions/competitions_providers.dart';
+import 'src/features/favourites/favourites_providers.dart';
 import 'src/features/onboarding/onboarding_providers.dart';
 
 Future<void> main() async {
@@ -23,6 +24,7 @@ Future<void> main() async {
   final savedCompetition = await loadSavedCompetition();
   final themeMode = await loadThemeMode();
   final onboardingDone = await loadOnboardingDone();
+  final favourites = await loadFavourites();
 
   runApp(
     ProviderScope(
@@ -30,6 +32,7 @@ Future<void> main() async {
         bootstrapCompetitionProvider.overrideWithValue(savedCompetition),
         bootstrapThemeModeProvider.overrideWithValue(themeMode),
         bootstrapOnboardingDoneProvider.overrideWithValue(onboardingDone),
+        bootstrapFavouritesProvider.overrideWithValue(favourites),
       ],
       child: const KickOffApp(),
     ),

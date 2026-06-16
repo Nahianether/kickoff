@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../competitions/presentation/competition_emblem.dart';
+import '../../favourites/favourites_providers.dart';
 import '../../matches/data/models/team.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
 import '../../team/presentation/team_screen.dart';
@@ -98,6 +100,7 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
               text: 'No teams found for “$_query”.',
             );
           }
+          final favIds = ref.watch(favouriteTeamIdsProvider);
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: results.length,
@@ -105,6 +108,7 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
                 Divider(height: 1, color: theme.colorScheme.outlineVariant),
             itemBuilder: (context, i) {
               final r = results[i];
+              final isFav = r.team.id != null && favIds.contains(r.team.id);
               return ListTile(
                 leading: TeamCrest(team: r.team, size: 34),
                 title: Text(
@@ -124,7 +128,19 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
                     ),
                   ],
                 ),
-                trailing: const Icon(Icons.chevron_right, size: 20),
+                // One-tap follow right from the results, without opening the team.
+                trailing: IconButton(
+                  icon: Icon(
+                    isFav ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: isFav
+                        ? AppTheme.amber
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                  tooltip: isFav ? 'Following' : 'Follow',
+                  onPressed: () => ref
+                      .read(favouriteTeamsProvider.notifier)
+                      .toggle(r.team, competitionCode: r.competition.code),
+                ),
                 onTap: () {
                   // Open the team scoped to its own league without changing the
                   // user's currently-selected league.

@@ -9,6 +9,7 @@ import '../../../core/widgets/skeleton.dart';
 import '../../competitions/data/competition.dart';
 import '../../competitions/presentation/competition_emblem.dart';
 import '../../matches/presentation/widgets/team_crest.dart';
+import '../../search/presentation/global_search_screen.dart';
 import '../../team/presentation/team_screen.dart';
 import '../application/following_provider.dart';
 
@@ -28,6 +29,16 @@ class FollowingScreen extends ConsumerWidget {
         titleSpacing: 16,
         flexibleSpace: const HeaderGradient(),
         title: const Text('Following'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Find & follow teams',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(followingFeedProvider),
@@ -230,7 +241,7 @@ class _EmptyView extends StatelessWidget {
     final theme = Theme.of(context);
     return ListView(
       children: [
-        const SizedBox(height: 110),
+        const SizedBox(height: 100),
         Icon(Icons.star_outline_rounded,
             size: 48, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(height: 14),
@@ -238,10 +249,20 @@ class _EmptyView extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              'You’re not following any teams yet.\nOpen a match or a team and tap Follow — they’ll appear here grouped by league.',
+              'You’re not following any teams yet.\nSearch for a team and tap the star to follow it.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Center(
+          child: FilledButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+            ),
+            icon: const Icon(Icons.search_rounded),
+            label: const Text('Find teams to follow'),
           ),
         ),
       ],

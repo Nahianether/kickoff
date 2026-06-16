@@ -10,32 +10,32 @@ import 'data/favourite_team.dart';
 
 const _kFavouritesKey = 'favourite_teams';
 
-/// The user's starred teams, persisted locally. Used to filter the Matches list
-/// to followed teams and to highlight their rows in Standings.
-///
-/// Loads asynchronously on first build (seeded empty); the brief empty state is
-/// harmless because favourites only add a filter/highlight on top of data that
-/// renders regardless.
-class FavouritesNotifier extends Notifier<List<FavouriteTeam>> {
-  @override
-  List<FavouriteTeam> build() {
-    _load();
+/// Reads the persisted followed teams before the first frame (called in `main`),
+/// so they're available synchronously — no in-build async state mutation.
+Future<List<FavouriteTeam>> loadFavourites() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kFavouritesKey);
+    if (raw == null) return const [];
+    return (jsonDecode(raw) as List<dynamic>)
+        .map((e) => FavouriteTeam.fromJson(e as Map<String, dynamic>))
+        .toList();
+  } catch (e) {
+    debugPrint('loadFavourites skipped: $e');
     return const [];
   }
+}
 
-  Future<void> _load() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kFavouritesKey);
-      if (raw == null) return;
-      final list = (jsonDecode(raw) as List<dynamic>)
-          .map((e) => FavouriteTeam.fromJson(e as Map<String, dynamic>))
-          .toList();
-      state = list;
-    } catch (e) {
-      debugPrint('Favourites load skipped: $e');
-    }
-  }
+/// Seed for [favouriteTeamsProvider]; overridden in `main` with the saved list.
+final bootstrapFavouritesProvider =
+    Provider<List<FavouriteTeam>>((ref) => const []);
+
+/// The user's starred teams, persisted locally. Seeded synchronously at boot
+/// (via [bootstrapFavouritesProvider]) so reading it never schedules a state
+/// change during a widget build.
+class FavouritesNotifier extends Notifier<List<FavouriteTeam>> {
+  @override
+  List<FavouriteTeam> build() => ref.read(bootstrapFavouritesProvider);
 
   Future<void> _persist(List<FavouriteTeam> teams) async {
     try {
