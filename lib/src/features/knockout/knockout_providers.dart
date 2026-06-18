@@ -26,8 +26,10 @@ const Map<String, int> _stageOrder = {
   'LAST_16': 2,
   'QUARTER_FINALS': 3,
   'SEMI_FINALS': 4,
-  'THIRD_PLACE': 5,
-  'FINAL': 6,
+  'FINAL': 5,
+  // Third place sits after the final so it reads as a standalone column and
+  // doesn't interrupt the Semi-finals → Final connector chain in the bracket.
+  'THIRD_PLACE': 6,
 };
 
 String knockoutStageLabel(String stage) {
