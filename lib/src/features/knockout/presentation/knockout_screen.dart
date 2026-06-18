@@ -88,13 +88,42 @@ class _Geo {
   static double columnX(int round) => round * (cardWidth + colGap);
 }
 
-class _Bracket extends ConsumerWidget {
+/// Timeline shared by the entrance animation: each round's cards (and the
+/// connectors leading into it) reveal a little after the previous round, so the
+/// bracket appears to "build" left-to-right.
+const double _kStagger = 0.10;
+const double _kWindow = 0.5;
+
+Interval _revealInterval(int round) {
+  final start = (round * _kStagger).clamp(0.0, 1.0 - _kWindow);
+  return Interval(start, start + _kWindow, curve: Curves.easeOutCubic);
+}
+
+class _Bracket extends ConsumerStatefulWidget {
   const _Bracket({required this.rounds});
 
   final List<KnockoutRound> rounds;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Bracket> createState() => _BracketState();
+}
+
+class _BracketState extends ConsumerState<_Bracket>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..forward();
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rounds = widget.rounds;
     final theme = Theme.of(context);
     final competition = ref.watch(selectedCompetitionProvider);
 
@@ -119,7 +148,11 @@ class _Bracket extends ConsumerWidget {
           top: centerY(r, i) - _Geo.cardHeight / 2,
           width: _Geo.cardWidth,
           height: _Geo.cardHeight,
-          child: _MatchCard(match: matches[i], competition: competition),
+          child: _Reveal(
+            animation: _entrance,
+            interval: _revealInterval(r),
+            child: _MatchCard(match: matches[i], competition: competition),
+          ),
         ));
       }
     }
@@ -149,6 +182,7 @@ class _Bracket extends ConsumerWidget {
                             rounds: rounds,
                             totalHeight: totalHeight,
                             color: theme.colorScheme.outlineVariant,
+                            animation: _entrance,
                           ),
                         ),
                       ),
@@ -161,6 +195,37 @@ class _Bracket extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Fades, slides and scales [child] in over its round's slice of the timeline.
+class _Reveal extends StatelessWidget {
+  const _Reveal({
+    required this.animation,
+    required this.interval,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final Interval interval;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      child: child,
+      builder: (context, child) {
+        final t = interval.transform(animation.value);
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset((1 - t) * -22, 0),
+            child: Transform.scale(scale: 0.94 + 0.06 * t, child: child),
+          ),
+        );
+      },
     );
   }
 }
@@ -221,18 +286,20 @@ class _ConnectorPainter extends CustomPainter {
     required this.rounds,
     required this.totalHeight,
     required this.color,
-  });
+    required this.animation,
+  }) : super(repaint: animation);
 
   final List<KnockoutRound> rounds;
   final double totalHeight;
   final Color color;
+  final Animation<double> animation;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color
       ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
     for (var r = 0; r < rounds.length - 1; r++) {
       final from = rounds[r];
@@ -240,6 +307,12 @@ class _ConnectorPainter extends CustomPainter {
       if (from.stage == 'THIRD_PLACE' || to.stage == 'THIRD_PLACE') continue;
       // Only connect clean binary steps (e.g. 8 → 4); skip irregular rounds.
       if (to.matches.length * 2 != from.matches.length) continue;
+
+      // Reveal each connector in step with the column it leads into; draw the
+      // elbow progressively (feeder → join → parent) so the lines "grow" in.
+      final t = _revealInterval(r + 1).transform(animation.value);
+      if (t <= 0) continue;
+      paint.color = color.withValues(alpha: t);
 
       final fromPitch = totalHeight / from.matches.length;
       final toPitch = totalHeight / to.matches.length;
@@ -252,15 +325,16 @@ class _ConnectorPainter extends CustomPainter {
         final botFeederY = fromPitch * (2 * j + 1.5);
         final parentY = toPitch * (j + 0.5);
 
-        // Two short stubs out of the feeders, a vertical join, then into parent.
-        canvas.drawLine(
-            Offset(fromRightX, topFeederY), Offset(midX, topFeederY), paint);
-        canvas.drawLine(
-            Offset(fromRightX, botFeederY), Offset(midX, botFeederY), paint);
-        canvas.drawLine(
-            Offset(midX, topFeederY), Offset(midX, botFeederY), paint);
-        canvas.drawLine(
-            Offset(midX, parentY), Offset(toLeftX, parentY), paint);
+        // Two short stubs out of the feeders, a vertical join, then into parent,
+        // each scaled by [t] from its start point so the elbow draws itself.
+        canvas.drawLine(Offset(fromRightX, topFeederY),
+            Offset.lerp(Offset(fromRightX, topFeederY), Offset(midX, topFeederY), t)!, paint);
+        canvas.drawLine(Offset(fromRightX, botFeederY),
+            Offset.lerp(Offset(fromRightX, botFeederY), Offset(midX, botFeederY), t)!, paint);
+        canvas.drawLine(Offset(midX, topFeederY),
+            Offset.lerp(Offset(midX, topFeederY), Offset(midX, botFeederY), t)!, paint);
+        canvas.drawLine(Offset(midX, parentY),
+            Offset.lerp(Offset(midX, parentY), Offset(toLeftX, parentY), t)!, paint);
       }
     }
   }
@@ -272,11 +346,20 @@ class _ConnectorPainter extends CustomPainter {
       old.color != color;
 }
 
-class _MatchCard extends StatelessWidget {
+class _MatchCard extends StatefulWidget {
   const _MatchCard({required this.match, required this.competition});
 
   final MatchFixture match;
   final Competition competition;
+
+  @override
+  State<_MatchCard> createState() => _MatchCardState();
+}
+
+class _MatchCardState extends State<_MatchCard> {
+  bool _hover = false;
+
+  MatchFixture get match => widget.match;
 
   bool _isWinner(bool home) {
     if (!match.isFinished) return false;
@@ -289,44 +372,60 @@ class _MatchCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Material(
-      color: scheme.surfaceContainer,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) =>
-                MatchDetailScreen(match: match, competition: competition),
-          ),
-        ),
-        child: Container(
-          decoration: BoxDecoration(
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedScale(
+        scale: _hover ? 1.03 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        child: Material(
+          color: scheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(10),
+          elevation: _hover ? 6 : 0,
+          shadowColor: Colors.black,
+          child: InkWell(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: scheme.outlineVariant),
-          ),
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                match.isFinished
-                    ? 'Full-time'
-                    : DateFormat('EEE, d MMM · h:mm a').format(match.utcDate),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MatchDetailScreen(
+                    match: match, competition: widget.competition),
+              ),
+            ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _hover ? scheme.primary : scheme.outlineVariant,
+                  width: _hover ? 1.5 : 1,
                 ),
               ),
-              const SizedBox(height: 6),
-              _teamLine(theme, match.homeTeam, match.score.homeFullTime,
-                  _isWinner(true)),
-              const SizedBox(height: 5),
-              _teamLine(theme, match.awayTeam, match.score.awayFullTime,
-                  _isWinner(false)),
-            ],
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    match.isFinished
+                        ? 'Full-time'
+                        : DateFormat('EEE, d MMM · h:mm a')
+                            .format(match.utcDate),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  _teamLine(theme, match.homeTeam, match.score.homeFullTime,
+                      _isWinner(true)),
+                  const SizedBox(height: 5),
+                  _teamLine(theme, match.awayTeam, match.score.awayFullTime,
+                      _isWinner(false)),
+                ],
+              ),
+            ),
           ),
         ),
       ),
