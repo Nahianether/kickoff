@@ -22,7 +22,14 @@ class TeamCrest extends StatelessWidget {
     if (url == null || url.isEmpty) {
       image = _fallback(context);
     } else if (url.toLowerCase().endsWith('.svg')) {
-      image = _NetworkSvgCrest(url: url, size: size, fallback: _fallback(context));
+      // Key by url so a recycled list cell loading a different team forces a
+      // fresh State (otherwise the previous team's flag would stick).
+      image = _NetworkSvgCrest(
+        key: ValueKey(url),
+        url: url,
+        size: size,
+        fallback: _fallback(context),
+      );
     } else {
       image = Image.network(
         url,
@@ -68,6 +75,7 @@ class TeamCrest extends StatelessWidget {
 /// does). Results — including failures — are cached for the session.
 class _NetworkSvgCrest extends StatefulWidget {
   const _NetworkSvgCrest({
+    super.key,
     required this.url,
     required this.size,
     required this.fallback,

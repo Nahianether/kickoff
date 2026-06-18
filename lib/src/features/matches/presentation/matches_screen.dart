@@ -23,17 +23,24 @@ class MatchesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final filtered = ref.watch(filteredMatchesProvider);
     final filter = ref.watch(matchFilterProvider);
+    final selectedDate = ref.watch(selectedDateProvider);
     final competition = ref.watch(selectedCompetitionProvider);
     final competitionCode = competition.code;
-    // Only jump to "today" on the unfiltered All view; other tabs start at the
-    // top where their results naturally read.
-    final autoScrollToToday = filter == MatchFilter.all;
+    // Only jump to "today" on the unfiltered All view with no date pinned; other
+    // tabs (and a single-day view) start at the top where they naturally read.
+    final autoScrollToToday = filter == MatchFilter.all && selectedDate == null;
 
     return Scaffold(
       appBar: const LeagueAppBar(
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(52),
-          child: SegmentedFilter(),
+          preferredSize: Size.fromHeight(100),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _DateFilterBar(),
+              SegmentedFilter(),
+            ],
+          ),
         ),
       ),
       body: RefreshIndicator(
@@ -46,13 +53,15 @@ class MatchesScreen extends ConsumerWidget {
           ),
           data: (matches) => _MatchList(
             // A fresh key per view re-applies the initial scroll position when
-            // the competition/filter changes (but not on refresh).
-            key: ValueKey('$competitionCode|${filter.name}'),
+            // the competition/filter/date changes (but not on refresh).
+            key: ValueKey(
+                '$competitionCode|${filter.name}|${selectedDate?.toIso8601String() ?? 'all'}'),
             matches: matches,
             competition: competition,
             autoScrollToToday: autoScrollToToday,
-            emptyIcon: _emptyIcon(filter),
-            emptyMessage: _emptyMessage(filter, competition.shortName),
+            emptyIcon: _emptyIcon(filter, selectedDate),
+            emptyMessage:
+                _emptyMessage(filter, competition.shortName, selectedDate),
           ),
         ),
       ),
@@ -71,7 +80,12 @@ class MatchesScreen extends ConsumerWidget {
 }
 
 /// Empty-state copy tailored to why the list is empty.
-String _emptyMessage(MatchFilter filter, String competitionName) {
+String _emptyMessage(
+    MatchFilter filter, String competitionName, DateTime? date) {
+  // A pinned day with nothing on it is the most specific reason — say so.
+  if (date != null) {
+    return 'No matches on ${DateFormat('EEE, d MMM').format(date)}.\nTry another date or tap ✕ to clear.';
+  }
   return switch (filter) {
     MatchFilter.favourites =>
       'No followed teams in this competition.\nOpen a match and tap ☆ to follow a team.',
@@ -85,13 +99,89 @@ String _emptyMessage(MatchFilter filter, String competitionName) {
   };
 }
 
-IconData _emptyIcon(MatchFilter filter) {
+IconData _emptyIcon(MatchFilter filter, DateTime? date) {
+  if (date != null) return Icons.event_busy_outlined;
   return switch (filter) {
     MatchFilter.favourites => Icons.star_outline_rounded,
     MatchFilter.all => Icons.event_busy_outlined,
     MatchFilter.live => Icons.sensors_off_outlined,
     _ => Icons.search_off,
   };
+}
+
+/// A pill above the status filter that pins the match list to a single day.
+/// Tapping opens a calendar; ✕ clears it back to "All dates".
+class _DateFilterBar extends ConsumerWidget {
+  const _DateFilterBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final selected = ref.watch(selectedDateProvider);
+    final hasDate = selected != null;
+    final label =
+        hasDate ? DateFormat('EEE, d MMM y').format(selected) : 'All dates';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => _pickDate(context, ref, selected),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hasDate ? scheme.primary : scheme.outlineVariant,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.calendar_today_rounded,
+                  size: 16,
+                  color: hasDate ? scheme.primary : scheme.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: hasDate ? scheme.primary : scheme.onSurface,
+                ),
+              ),
+              const Spacer(),
+              if (hasDate)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => ref.read(selectedDateProvider.notifier).clear(),
+                  child: Icon(Icons.close_rounded,
+                      size: 18, color: scheme.onSurfaceVariant),
+                )
+              else
+                Icon(Icons.expand_more_rounded,
+                    size: 18, color: scheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickDate(
+      BuildContext context, WidgetRef ref, DateTime? current) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current ?? now,
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 2),
+      helpText: 'Show matches on',
+    );
+    if (picked != null) {
+      ref.read(selectedDateProvider.notifier).select(picked);
+    }
+  }
 }
 
 /// A shimmering placeholder shown while the first fixtures load.

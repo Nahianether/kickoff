@@ -72,6 +72,13 @@ final matchesRepositoryProvider = Provider<MatchesRepository>((ref) {
 class MatchesNotifier extends AsyncNotifier<MatchesData> {
   MatchesRepository get _repo => ref.read(matchesRepositoryProvider);
 
+  /// Leagues already revalidated against the network in this app session.
+  /// Persists for the life of the process (static), so the first time a league
+  /// is shown after launch we always refresh — correcting stale "live"/score
+  /// statuses carried over in the cache from the previous session — while later
+  /// in-session switches between leagues respect the cache TTL to save quota.
+  static final Set<String> _revalidatedThisSession = <String>{};
+
   @override
   Future<MatchesData> build() async {
     final competition = ref.watch(selectedCompetitionProvider);
@@ -89,9 +96,12 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
 
     final cached = await _repo.readCache(code);
     if (cached != null) {
-      // Stale-while-revalidate: show cache now, refresh in the background only
-      // when it has gone stale.
-      if (!cached.isFresh) {
+      // Stale-while-revalidate: show cache now, then refresh in the background
+      // on the first view this session (to correct statuses that changed while
+      // the app was closed) or whenever the cache has gone stale.
+      final firstViewThisSession = !_revalidatedThisSession.contains(code);
+      if (firstViewThisSession || !cached.isFresh) {
+        _revalidatedThisSession.add(code);
         _revalidateSilently(code);
       }
       return MatchesData(
@@ -102,6 +112,7 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
     }
 
     // Nothing cached yet → must fetch.
+    _revalidatedThisSession.add(code);
     return _fetch(code);
   }
 
@@ -127,6 +138,7 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
   /// visible and records the error so the UI can surface it.
   Future<void> refresh() async {
     final code = ref.read(selectedCompetitionProvider).code;
+    _revalidatedThisSession.add(code);
     try {
       state = AsyncData(await _fetch(code));
     } catch (e, st) {
@@ -176,23 +188,48 @@ class MatchFilterNotifier extends Notifier<MatchFilter> {
 final matchFilterProvider =
     NotifierProvider<MatchFilterNotifier, MatchFilter>(MatchFilterNotifier.new);
 
+/// The single day the user has pinned in the matches view, or null for the
+/// default "all dates". Normalised to midnight so only the calendar day matters.
+class SelectedDateNotifier extends Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+
+  void select(DateTime date) => state = DateTime(date.year, date.month, date.day);
+
+  void clear() => state = null;
+}
+
+final selectedDateProvider =
+    NotifierProvider<SelectedDateNotifier, DateTime?>(SelectedDateNotifier.new);
+
 /// Matches for the current competition after applying the selected status
-/// filter (team lookup lives in the global search screen instead).
+/// filter and, if one is pinned, the selected day (team lookup lives in the
+/// global search screen instead).
 final filteredMatchesProvider = Provider<AsyncValue<List<MatchFixture>>>((ref) {
   final filter = ref.watch(matchFilterProvider);
   final favIds = ref.watch(favouriteTeamIdsProvider);
+  final selectedDate = ref.watch(selectedDateProvider);
   final asyncMatches = ref.watch(matchesProvider);
   return asyncMatches.whenData((data) {
-    final matches = data.matches;
-    return switch (filter) {
-      MatchFilter.all => matches,
-      MatchFilter.upcoming => matches.where((m) => m.isUpcoming).toList(),
-      MatchFilter.results => matches.where((m) => m.isFinished).toList(),
-      MatchFilter.live => matches.where((m) => m.isLive).toList(),
-      MatchFilter.favourites => matches
+    var matches = switch (filter) {
+      MatchFilter.all => data.matches,
+      MatchFilter.upcoming => data.matches.where((m) => m.isUpcoming).toList(),
+      MatchFilter.results => data.matches.where((m) => m.isFinished).toList(),
+      MatchFilter.live => data.matches.where((m) => m.isLive).toList(),
+      MatchFilter.favourites => data.matches
           .where((m) =>
               favIds.contains(m.homeTeam.id) || favIds.contains(m.awayTeam.id))
           .toList(),
     };
+    if (selectedDate != null) {
+      // utcDate is stored as local time, so compare against the local day.
+      matches = matches
+          .where((m) =>
+              m.utcDate.year == selectedDate.year &&
+              m.utcDate.month == selectedDate.month &&
+              m.utcDate.day == selectedDate.day)
+          .toList();
+    }
+    return matches;
   });
 });
