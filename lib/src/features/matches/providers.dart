@@ -96,12 +96,25 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
 
     final cached = await _repo.readCache(code);
     if (cached != null) {
-      // Stale-while-revalidate: show cache now, then refresh in the background
-      // on the first view this session (to correct statuses that changed while
-      // the app was closed) or whenever the cache has gone stale.
       final firstViewThisSession = !_revalidatedThisSession.contains(code);
+      _revalidatedThisSession.add(code);
+
+      // On the first view of a league this session, a cached "live" match is
+      // almost certainly stale — the match finished while the app was closed.
+      // Block briefly on a fresh fetch so we never flash a phantom "LIVE"; if
+      // the network or rate-limit fails, fall through to the cache (the
+      // retrying background refresh below then heals it).
+      if (firstViewThisSession && cached.matches.any((m) => m.isLive)) {
+        try {
+          return await _fetch(code);
+        } catch (_) {
+          // Fall through to showing the cache + a background retry.
+        }
+      }
+
+      // Stale-while-revalidate: show cache now, refresh in the background on the
+      // first view this session or whenever the cache has gone stale.
       if (firstViewThisSession || !cached.isFresh) {
-        _revalidatedThisSession.add(code);
         _revalidateSilently(code);
       }
       return MatchesData(
@@ -126,11 +139,27 @@ class MatchesNotifier extends AsyncNotifier<MatchesData> {
   }
 
   /// Background refresh that never throws — keeps cached data on failure.
+  ///
+  /// Retries a few times with a delay: on a cold start the app fires several
+  /// requests at once (matches, standings, scorers, …) which can trip the free
+  /// tier's 10-requests/minute limit (429). Without a retry the refresh would
+  /// give up and leave a stale "LIVE" status on screen until a manual pull. The
+  /// delays let the rate-limit window free a slot so the data self-heals.
   Future<void> _revalidateSilently(String code) async {
-    try {
-      state = AsyncData(await _fetch(code));
-    } catch (_) {
-      // Ignore: the cached data is still on screen.
+    const delays = [Duration(seconds: 6), Duration(seconds: 8)];
+    for (var attempt = 0;; attempt++) {
+      try {
+        final fresh = await _fetch(code);
+        // The user may have switched leagues while we were fetching — never
+        // overwrite the now-selected league's data with this one's.
+        if (ref.read(selectedCompetitionProvider).code != code) return;
+        state = AsyncData(fresh);
+        return;
+      } catch (_) {
+        if (attempt >= delays.length) return; // give up quietly; cache stays
+        await Future.delayed(delays[attempt]);
+        if (ref.read(selectedCompetitionProvider).code != code) return;
+      }
     }
   }
 
